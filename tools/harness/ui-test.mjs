@@ -116,6 +116,26 @@ step('delete item', () => {
   if (st2.items.length !== 0) throw new Error('item not deleted');
 });
 
+step('AI key saves from settings (inline onclick works)', () => {
+  w.switchTab('settings');
+  if (typeof w.saveGeminiKey !== 'function') throw new Error('saveGeminiKey not exposed to window');
+  const input = w.document.getElementById('geminiKey');
+  if (!input) throw new Error('no key input');
+  const key = 'AIza' + 'X'.repeat(32);
+  input.value = key;
+  w.saveGeminiKey();
+  if (w.localStorage.getItem('koo_gemini_key') !== key) throw new Error('key not stored');
+  const body = txt();
+  if (!body.includes('کلید فعال است')) throw new Error('badge did not update');
+  if (!body.includes('AIza')) throw new Error('masked key not shown');
+});
+
+step('AI key can be removed', () => {
+  w.clearGeminiKey();
+  if (w.localStorage.getItem('koo_gemini_key')) throw new Error('key still stored');
+  if (!txt().includes('کلید خاموش است')) throw new Error('badge still active');
+});
+
 step('settings shows version and update check', () => {
   w.switchTab('settings');
   const body = txt();
@@ -153,6 +173,27 @@ step('theme auto follows system', () => {
 step('theme survives reload (light applied from storage before render)', () => {
   w.localStorage.setItem('koo_theme', 'dark');
   if (!w.document.documentElement) throw new Error('no root');
+});
+
+step('every inline onclick handler exists on window', () => {
+  const names = new Set();
+  const collect = () => {
+    for (const el of w.document.querySelectorAll('[onclick]')) {
+      const m = String(el.getAttribute('onclick') || '').match(/^\s*([A-Za-z_$][\w$]*)\s*\(/);
+      if (m) names.add(m[1]);
+    }
+  };
+  w.switchTab('items'); collect();
+  w.switchTab('spaces');
+  const st = JSON.parse(w.localStorage.getItem('koo_app_v1') || '{}');
+  if (st.spaces && st.spaces[0]) w.toggleSpace(st.spaces[0].id);
+  collect();
+  w.switchTab('settings'); collect();
+  w.switchTab('items'); w.openAddItem(); collect(); w.closeModal();
+  w.openAddSpace(); collect(); w.closeModal();
+  w.openAddPlace(st.spaces[0].id); collect(); w.closeModal();
+  const missing = [...names].filter((n) => typeof w[n] !== 'function');
+  if (missing.length) throw new Error('not on window: ' + missing.join(', '));
 });
 
 console.log('\nDOM errors:', errs.length ? errs : 'none');

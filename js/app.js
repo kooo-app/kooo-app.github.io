@@ -5,7 +5,7 @@ import {
   getSpace, getPlace, locationText, ONBOARDED_KEY,
 } from './state.js';
 import {
-  hasGeminiKey, saveGeminiKey, clearGeminiKey, testGeminiConnection, recognizeItem, makeThumb,
+  hasGeminiKey, saveGeminiKey, clearGeminiKey, geminiKeyMask, testGeminiConnection, recognizeItem, makeThumb,
 } from './scan.js';
 import { renderSyncCard, initGoogleOnLoad, syncStatusText, updateAvatar, gUser } from './sync.js';
 
@@ -265,12 +265,14 @@ function settingsHTML() {
     <div class="card">
       <h3>✨ هوش مصنوعی</h3>
       <p class="muted">با کلید رایگان گوگل، کو عکس وسیله رو می‌خونه و اسم و دسته‌بندی رو خودش پر می‌کنه. کلید فقط روی گوشی تو می‌مونه.</p>
-      <div id="aiState">${hasKey ? '<span class="badge ok">کلید فعال است</span>' : '<span class="badge">کلید خاموش است</span>'}</div>
+      <div id="aiState">${hasKey
+        ? '<span class="badge ok">کلید فعال است</span> <span class="small muted">' + esc(geminiKeyMask()) + '</span>'
+        : '<span class="badge">کلید خاموش است</span>'}</div>
       <div class="row gap">
         <button class="btn" onclick="testAiConnection()">آزمایش اتصال</button>
         <a class="btn" href="help-gemini.html" target="_blank" rel="noopener">چطور کلید بگیرم؟</a>
       </div>
-      <input class="input" id="geminiKey" type="password" autocomplete="off" placeholder="AIza...">
+      <input class="input" id="geminiKey" type="password" autocomplete="off" inputmode="text" placeholder="AIza..." onkeydown="if(event.key==='Enter'){event.preventDefault();saveGeminiKey();}">
       <div class="row gap">
         <button class="btn primary" onclick="saveGeminiKey()">ذخیره کلید</button>
         ${hasKey ? '<button class="btn danger" onclick="clearGeminiKey()">حذف کلید</button>' : ''}
@@ -303,6 +305,9 @@ function settingsHTML() {
 }
 
 window.openSettingsAI = () => { tab = 'settings'; render(); };
+// این دو تابع از scan.js می‌آیند و onclick سراسری به window نیاز دارد
+window.saveGeminiKey = () => saveGeminiKey();
+window.clearGeminiKey = () => clearGeminiKey();
 window.testAiConnection = async () => {
   const el = $('aiState');
   if (el) el.innerHTML = '⏳ در حال آزمایش…';

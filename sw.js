@@ -1,7 +1,7 @@
 // sw — کش آفلاین کو (الگو از تراز)
 // ⚠️ با هر انتشار: CACHE را با APP_VERSION در js/utils.js یکی نگه دار
 // (یا از tools/bump-version.mjs استفاده کن)
-const CACHE = 'koo-v0.2.1';
+const CACHE = 'koo-v0.2.2';
 
 const ASSETS = [
   './',

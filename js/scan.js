@@ -79,20 +79,34 @@ const MODELS = [
 ];
 
 export function hasGeminiKey() { return !!store.get(KEY); }
-export function getGeminiKey() { return (store.get(KEY) || '').trim(); }
+export function getGeminiKey() { return (store.get(KEY) || '').replace(/\s+/g, ''); }
 
 export function saveGeminiKey() {
   const el = document.getElementById('geminiKey');
-  const v = (el && el.value ? el.value : '').trim();
-  if (!v) { toast('کلید را بچسبان'); return; }
+  const v = (el && el.value ? el.value : '').replace(/\s+/g, '');
+  if (!v) { toast('کلید را بچسبان'); return false; }
+  if (v.length < 20) { toast('کلید کوتاه است؛ کامل کپی کن'); return false; }
   store.set(KEY, v);
-  toast('کلید ذخیره شد');
+  // تأیید واقعی ذخیره (مثلاً حالت ناشناس یا حافظهٔ پر)
+  if (getGeminiKey() !== v) {
+    toast('ذخیره نشد؛ حافظهٔ مرورگر اجازه نداد (حالت ناشناس یا حافظهٔ پر)');
+    return false;
+  }
+  toast('کلید ذخیره شد ✓');
   if (typeof window.openSettingsAI === 'function') window.openSettingsAI();
+  return true;
 }
 export function clearGeminiKey() {
   store.set(KEY, '');
+  if (getGeminiKey()) { toast('پاک نشد؛ دوباره امتحان کن'); return false; }
   toast('کلید پاک شد');
   if (typeof window.openSettingsAI === 'function') window.openSettingsAI();
+  return true;
+}
+export function geminiKeyMask() {
+  const k = getGeminiKey();
+  if (!k) return '';
+  return k.slice(0, 4) + '…' + k.slice(-4);
 }
 
 export function fileToJpeg(file, max, quality) {
