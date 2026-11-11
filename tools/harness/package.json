@@ -1,0 +1,13 @@
+{
+  "name": "koo-harness",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "description": "تست‌های ساده کو: منطق داده، مسیرهای هوش مصنوعی و رابط کاربری",
+  "scripts": {
+    "test": "node run-all.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^31.0.0"
+  }
+}

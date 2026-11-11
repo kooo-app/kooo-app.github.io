@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>چطور کلید گوگل را بگیرم؟</title>
+<style>
+  :root{color-scheme:light dark}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#f6f7fb;color:#111827;margin:0;padding:20px;line-height:1.8;max-width:640px;margin-left:auto;margin-right:auto}
+  h1{font-size:20px;margin:0 0 12px}
+  h2{font-size:16px;margin:22px 0 8px;color:#0e7490}
+  a{color:#2563eb}
+  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px;margin:12px 0}
+  ol,ul{padding-inline-start:22px}
+  .warn{color:#b45309}
+  .muted{color:#6b7280;font-size:13px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .seg{display:inline-flex;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:none;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:#6b7280}
+  .seg button.on{background:#0e7490;color:#fff}
+  @media (prefers-color-scheme: dark){
+    body{background:#0b0f17;color:#e9eff8}.card,.seg{background:#141b29;border-color:#243044}h2{color:#67e8f9}a{color:#3d8bfd}.warn{color:#fbbf24}.muted{color:#8b98ab}
+  }
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+  <div class="top">
+    <p class="muted" style="margin:0"><a href="./" data-fa>برگشت به برنامه</a><a href="./" data-en hidden>Back to the app</a></p>
+    <div class="seg"><button type="button" id="bFa" onclick="setL('fa')">فارسی</button><button type="button" id="bEn" onclick="setL('en')">English</button></div>
+  </div>
+
+  <div data-fa>
+  <h1>کلید شناسایی وسیله از عکس</h1>
+  <p>برای اینکه کو عکس وسیله را بخواند و اسم و دسته‌بندی‌اش را خودش پر کند، یک کلید رایگان از گوگل لازم است. کلید را در تنظیمات برنامه می‌گذاری؛ به کسی نده.</p>
+
+  <div class="card">
+    <h2>۱. برو به استودیو گوگل</h2>
+    <p>با همان حساب گوگل‌ات این صفحه را باز کن:</p>
+    <p><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+  </div>
+
+  <div class="card">
+    <h2>۲. کلید بساز</h2>
+    <ol>
+      <li>اگر خواست، وارد حساب گوگل شو.</li>
+      <li>دکمه <b>Create API key</b> را بزن.</li>
+      <li>اگر پروژه خواست، همان پروژه برنامه را انتخاب کن.</li>
+      <li>یک متن طولانی که معمولاً با <b>AIza</b> شروع می‌شود می‌دهد. همان کلید است.</li>
+      <li>کپی کن.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>۳. در برنامه بگذار</h2>
+    <ol>
+      <li>برگرد به برنامه → تنظیمات ⚙</li>
+      <li>بخش «هوش مصنوعی»</li>
+      <li>کلید را بچسبان و ذخیره کن.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>اگر کار نکرد</h2>
+    <ul>
+      <li>اول در برنامه ببین کدام مسیر جواب می‌دهد: تنظیمات ⚙ → «هوش مصنوعی» → <b>آزمایش اتصال</b>. نتیجه هر دو مسیر (گوگل مستقیم و پل) با عدد و دلیل نوشته می‌شود.</li>
+      <li>اگر در ایران هستی، فیلترشکن را روشن کن: <b>سرویس هوش مصنوعی گوگل</b> به ایران سرویس نمی‌دهد. توجه کن که ورود به گوگل و همگام‌سازی درایو این محدودیت را ندارند.</li>
+      <li>اگر با فیلترشکن هم گفت «منطقه پشتیبانی نمی‌شود»: سرور یا کشور فیلترشکن را عوض کن.</li>
+      <li>اگر کلید را محدود کرده‌ای، این آدرس را در محدودیت کلید اضافه کن: <b>https://koo-app.github.io</b></li>
+      <li>کلید را در چت برای کسی نفرست.</li>
+      <li>رایگان است تا سقف روزانه گوگل؛ اگر گفت سهمیه تمام شده، فردا دوباره امتحان کن.</li>
+    </ul>
+    <p class="warn">عکس وسیله برای خواندن به سرور گوگل فرستاده می‌شود.</p>
+  </div>
+  </div>
+
+  <div data-en hidden>
+  <h1>Key for recognizing items from photos</h1>
+  <p>To let Koo read a photo of an item and fill its name and category, you need a free key from Google. Paste it into the app settings; don't share it.</p>
+  <div class="card">
+    <h2>1. Open Google AI Studio</h2>
+    <p><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+  </div>
+  <div class="card">
+    <h2>2. Create a key</h2>
+    <ol>
+      <li>Sign in to Google if asked.</li>
+      <li>Tap <b>Create API key</b>.</li>
+      <li>Copy the long string starting with <b>AIza</b>.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h2>3. Paste it into the app</h2>
+    <ol>
+      <li>Back to the app → Settings ⚙ → AI</li>
+      <li>Paste the key and save.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h2>If it doesn't work</h2>
+    <ul>
+      <li>Check Settings → AI → <b>Test connection</b>. It reports both routes.</li>
+      <li>If you're in Iran, turn on a VPN: Google AI doesn't serve Iran. Google sign-in and Drive sync have no such limit.</li>
+      <li>If it still says region not supported, switch the VPN server or country.</li>
+      <li>Free up to Google's daily limit.</li>
+    </ul>
+    <p class="warn">The item photo is sent to Google's servers to be read.</p>
+  </div>
+  </div>
+
+<script>
+  function setL(l){
+    var en = l === 'en';
+    document.documentElement.lang = en ? 'en' : 'fa';
+    document.documentElement.dir = en ? 'ltr' : 'rtl';
+    document.title = en ? 'How do I get a Google key?' : 'چطور کلید گوگل را بگیرم؟';
+    document.querySelectorAll('[data-fa]').forEach(function(e){ e.hidden = en; });
+    document.querySelectorAll('[data-en]').forEach(function(e){ e.hidden = !en; });
+    document.getElementById('bFa').classList.toggle('on', !en);
+    document.getElementById('bEn').classList.toggle('on', en);
+    try { history.replaceState(null, '', '?lang=' + (en ? 'en' : 'fa')); } catch (e) {}
+  }
+  var q = new URLSearchParams(location.search).get('lang');
+  setL(q === 'en' ? 'en' : 'fa');
+</script>
+</body>
+</html>
