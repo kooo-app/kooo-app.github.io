@@ -116,6 +116,16 @@ step('delete item', () => {
   if (st2.items.length !== 0) throw new Error('item not deleted');
 });
 
+step('settings shows version and update check', () => {
+  w.switchTab('settings');
+  const body = txt();
+  if (!/نسخه/.test(body)) throw new Error('no version label');
+  if (!body.includes('0.')) throw new Error('no version number');
+  if (!w.document.getElementById('btnCheckUpd')) throw new Error('no update button');
+  if (typeof w.checkUpdateNow !== 'function') throw new Error('checkUpdateNow missing');
+  if (typeof w.applyUpdate !== 'function') throw new Error('applyUpdate missing');
+});
+
 step('theme defaults to light even on dark systems', () => {
   if (w.document.documentElement.getAttribute('data-theme') !== 'light') throw new Error('light not applied: ' + w.document.documentElement.getAttribute('data-theme'));
   w.switchTab('settings');
