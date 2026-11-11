@@ -1,5 +1,5 @@
 // sw — کش آفلاین کو (الگو از تراز)
-const CACHE = 'koo-v1';
+const CACHE = 'koo-v2';
 const ASSETS = [
   './',
   './index.html',

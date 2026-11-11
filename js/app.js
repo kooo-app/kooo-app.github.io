@@ -22,6 +22,33 @@ let aiBusy = false;
 
 const $ = (id) => document.getElementById(id);
 
+// ── تم: روشن / تاریک / خودکار (پیش‌فرض روشن) ──
+const THEME_KEY = 'koo_theme';
+export function getTheme() {
+  const t = store.get(THEME_KEY);
+  return t === 'dark' || t === 'light' ? t : 'light';
+}
+export function applyTheme() {
+  const t = store.get(THEME_KEY) || 'light'; // پیش‌فرض روشن؛ تنها «خودکار» از سیستم پیروی می‌کند
+  const root = document.documentElement;
+  if (t === 'dark' || t === 'light') root.setAttribute('data-theme', t);
+  else root.removeAttribute('data-theme');
+  const dark = t === 'dark' || (t === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', dark ? '#0b0f17' : '#0e7490');
+}
+window.setTheme = (t) => {
+  store.set(THEME_KEY, t);
+  applyTheme();
+  render();
+};
+if (window.matchMedia) {
+  const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  const onChange = () => { if (store.get(THEME_KEY) === 'auto') applyTheme(); };
+  if (mq.addEventListener) mq.addEventListener('change', onChange);
+  else if (mq.addListener) mq.addListener(onChange);
+}
+
 export function render() {
   const root = $('app');
   if (!root) return;
@@ -223,8 +250,18 @@ window.toggleSpace = (id) => { expandedSpace = expandedSpace === id ? null : id;
 // ── تنظیمات ──
 function settingsHTML() {
   const hasKey = hasGeminiKey();
+  const theme = store.get(THEME_KEY);
   return `
     <h2>تنظیمات</h2>
+    <div class="card">
+      <h3>🎨 ظاهر</h3>
+      <p class="muted small">تم روشن پیش‌فرض است؛ تاریک هم هست و حالت خودکار از تنظیم گوشی پیروی می‌کند.</p>
+      <div class="seg">
+        <button class="${!theme || theme === 'light' ? 'on' : ''}" onclick="setTheme('light')">☀️ روشن</button>
+        <button class="${theme === 'dark' ? 'on' : ''}" onclick="setTheme('dark')">🌙 تاریک</button>
+        <button class="${theme === 'auto' ? 'on' : ''}" onclick="setTheme('auto')">🌗 خودکار</button>
+      </div>
+    </div>
     <div class="card">
       <h3>✨ هوش مصنوعی</h3>
       <p class="muted">با کلید رایگان گوگل، کو عکس وسیله رو می‌خونه و اسم و دسته‌بندی رو خودش پر می‌کنه. کلید فقط روی گوشی تو می‌مونه.</p>
@@ -552,6 +589,7 @@ window.deletePlace = (spaceId, placeId) => {
 };
 
 // راه‌اندازی
+applyTheme();
 loadState();
 initGoogleOnLoad();
 render();

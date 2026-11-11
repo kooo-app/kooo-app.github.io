@@ -9,6 +9,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+  // تم را قبل از رندر ست کن تا صفحه یک لحظه سفید/سیاه نپرد
+  try {
+    var t = localStorage.getItem('koo_theme') || 'light';
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
 <link rel="stylesheet" href="css/app.css">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>

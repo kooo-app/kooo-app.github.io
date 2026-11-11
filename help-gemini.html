@@ -5,24 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>چطور کلید گوگل را بگیرم؟</title>
 <style>
-  :root{color-scheme:light dark}
-  body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:#f6f7fb;color:#111827;margin:0;padding:20px;line-height:1.8;max-width:640px;margin-left:auto;margin-right:auto}
-  h1{font-size:20px;margin:0 0 12px}
-  h2{font-size:16px;margin:22px 0 8px;color:#0e7490}
-  a{color:#2563eb}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px 16px;margin:12px 0}
-  ol,ul{padding-inline-start:22px}
-  .warn{color:#b45309}
-  .muted{color:#6b7280;font-size:13px}
-  .top{display:flex;justify-content:space-between;align-items:center;gap:12px}
-  .seg{display:inline-flex;border:1px solid #e5e7eb;border-radius:999px;overflow:hidden;background:#fff}
-  .seg button{border:0;background:none;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:#6b7280}
-  .seg button.on{background:#0e7490;color:#fff}
-  @media (prefers-color-scheme: dark){
-    body{background:#0b0f17;color:#e9eff8}.card,.seg{background:#141b29;border-color:#243044}h2{color:#67e8f9}a{color:#3d8bfd}.warn{color:#fbbf24}.muted{color:#8b98ab}
+  :root{
+    color-scheme: light;
+    --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
+    --primary:#0e7490; --primary-ink:#0e7490; --link:#2563eb; --warn:#b45309;
   }
+  :root[data-theme="dark"]{
+    color-scheme: dark;
+    --bg:#0b0f17; --card:#141b29; --text:#e9eff8; --muted:#8b98ab; --border:#243044;
+    --primary:#0e7490; --primary-ink:#67e8f9; --link:#7cc0ff; --warn:#fbbf24;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme: dark;
+      --bg:#0b0f17; --card:#141b29; --text:#e9eff8; --muted:#8b98ab; --border:#243044;
+      --primary:#0e7490; --primary-ink:#67e8f9; --link:#7cc0ff; --warn:#fbbf24;
+    }
+  }
+  body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:20px;line-height:1.8;max-width:640px;margin-left:auto;margin-right:auto}
+  h1{font-size:20px;margin:0 0 12px}
+  h2{font-size:16px;margin:22px 0 8px;color:var(--primary-ink)}
+  a{color:var(--link)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin:12px 0}
+  ol,ul{padding-inline-start:22px}
+  .warn{color:var(--warn)}
+  .muted{color:var(--muted);font-size:13px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:var(--card)}
+  .seg button{border:0;background:none;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--primary);color:#fff}
   [hidden]{display:none!important}
 </style>
+<script>
+  try {
+    var t = localStorage.getItem('koo_theme') || 'light';
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
 </head>
 <body>
   <div class="top">

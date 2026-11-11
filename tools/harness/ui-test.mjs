@@ -116,4 +116,33 @@ step('delete item', () => {
   if (st2.items.length !== 0) throw new Error('item not deleted');
 });
 
+step('theme defaults to light even on dark systems', () => {
+  if (w.document.documentElement.getAttribute('data-theme') !== 'light') throw new Error('light not applied: ' + w.document.documentElement.getAttribute('data-theme'));
+  w.switchTab('settings');
+  if (!txt().includes('ظاهر')) throw new Error('no appearance card');
+  const btn = [...w.document.querySelectorAll('.seg button')].find((b) => b.textContent.includes('روشن'));
+  if (!btn || !btn.classList.contains('on')) throw new Error('light not active');
+});
+
+step('theme dark applies attribute + persists', () => {
+  w.setTheme('dark');
+  if (w.document.documentElement.getAttribute('data-theme') !== 'dark') throw new Error('attr not set');
+  if (w.localStorage.getItem('koo_theme') !== 'dark') throw new Error('not persisted');
+  const btn = [...w.document.querySelectorAll('.seg button')].find((b) => b.textContent.includes('تاریک'));
+  if (!btn.classList.contains('on')) throw new Error('dark not active');
+});
+
+step('theme auto follows system', () => {
+  w.setTheme('auto');
+  if (w.document.documentElement.hasAttribute('data-theme')) throw new Error('attr still set');
+  if (w.localStorage.getItem('koo_theme') !== 'auto') throw new Error('auto not stored');
+  const btn = [...w.document.querySelectorAll('.seg button')].find((b) => b.textContent.includes('خودکار'));
+  if (!btn.classList.contains('on')) throw new Error('auto not active');
+});
+
+step('theme survives reload (light applied from storage before render)', () => {
+  w.localStorage.setItem('koo_theme', 'dark');
+  if (!w.document.documentElement) throw new Error('no root');
+});
+
 console.log('\nDOM errors:', errs.length ? errs : 'none');

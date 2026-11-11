@@ -1,11 +1,26 @@
+/* تم روشن پیش‌فرض است؛ تاریک با data-theme یا تنظیم سیستم */
 :root{
+  color-scheme: light;
   --bg:#f6f7fb; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb;
-  --primary:#0e7490; --primary2:#0891b2; --accent:#f97316; --danger:#dc2626; --ok:#16a34a;
+  --primary:#0e7490; --primary-ink:#0e7490; --primary2:#0891b2; --accent:#f97316; --danger:#dc2626; --ok:#16a34a;
+  --chip-bg:#fff; --shadow:0 8px 24px rgba(15,23,42,.14);
   --radius:16px;
 }
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#0b0f17; --card:#141b29; --text:#e9eff8; --muted:#8b98ab; --border:#243044; }
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0b0f17; --card:#141b29; --text:#e9eff8; --muted:#8b98ab; --border:#243044;
+  --primary:#0e7490; --primary-ink:#5eead4; --primary2:#67e8f9; --accent:#fb923c; --danger:#f87171; --ok:#4ade80;
+  --chip-bg:#141b29; --shadow:0 8px 24px rgba(0,0,0,.5);
 }
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0b0f17; --card:#141b29; --text:#e9eff8; --muted:#8b98ab; --border:#243044;
+    --primary:#0e7490; --primary-ink:#5eead4; --primary2:#67e8f9; --accent:#fb923c; --danger:#f87171; --ok:#4ade80;
+    --chip-bg:#141b29; --shadow:0 8px 24px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="light"]{ color-scheme: light; }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
@@ -19,8 +34,8 @@ input,select{font:inherit}
 .row.gap{gap:8px;flex-wrap:wrap}
 .row.between{justify-content:space-between}
 .hdr{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--border)}
-.logo{font-weight:900;font-size:24px;color:var(--primary)}
-.logo-big{font-weight:900;font-size:56px;color:var(--primary);line-height:1}
+.logo{font-weight:900;font-size:24px;color:var(--primary-ink)}
+.logo-big{font-weight:900;font-size:56px;color:var(--primary-ink);line-height:1}
 .hdr-actions{display:flex;gap:8px}
 .hdr-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--bg);display:grid;place-items:center;font-size:18px;overflow:hidden}
 .hdr-btn.signed{border-color:var(--primary)}
@@ -31,8 +46,8 @@ input,select{font:inherit}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;z-index:20;display:flex;background:var(--card);border-top:1px solid var(--border);padding:8px 12px calc(8px + env(safe-area-inset-bottom))}
 .bottom-nav button{flex:1;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;font-size:13px;padding:6px}
 .bottom-nav button span{font-size:20px}
-.bottom-nav button.on{color:var(--primary);font-weight:700}
-.fab{position:fixed;bottom:86px;left:16px;z-index:21;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:28px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.bottom-nav button.on{color:var(--primary-ink);font-weight:700}
+.fab{position:fixed;bottom:86px;left:16px;z-index:21;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:28px;box-shadow:var(--shadow)}
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin:12px 0}
 .card h3{margin:0 0 8px}
 .btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:12px;padding:10px 14px}
@@ -51,7 +66,7 @@ input,select{font:inherit}
 .item-thumb.ph{display:grid;place-items:center;font-size:26px;background:var(--bg)}
 .item-info{flex:1;display:flex;flex-direction:column}
 .item-info b{font-size:16px}
-.loc{color:var(--primary);font-size:13px}
+.loc{color:var(--primary-ink);font-size:13px}
 .cat{color:var(--muted);font-size:13px}
 .chev{color:var(--muted);font-size:22px}
 .empty{text-align:center;padding:40px 20px}
@@ -94,3 +109,11 @@ input,select{font:inherit}
 #toastRoot{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:8px;align-items:center}
 .toast{background:#111827;color:#fff;padding:10px 16px;border-radius:999px;opacity:0;transition:.3s;max-width:90vw;text-align:center}
 .toast.show{opacity:1}
+
+/* انتخاب تم */
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:999px;overflow:hidden;background:var(--card);margin:8px 0}
+.seg button{border:0;background:none;color:var(--muted);padding:8px 14px;font-size:14px}
+.seg button.on{background:var(--primary);color:#fff;font-weight:700}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .seg button.on{color:#fff} }
+.badge.ok{background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok);border-color:color-mix(in srgb, var(--ok) 35%, transparent)}
+.toast{background:color-mix(in srgb, var(--text) 92%, transparent);color:var(--bg)}
