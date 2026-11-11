@@ -1,7 +1,7 @@
 // utils — ابزارهای مشترک کو
 
 // نسخهٔ برنامه — با هر انتشار بالا ببر (و همان را در sw.js → CACHE بگذار)
-export const APP_VERSION = '0.3.0';
+export const APP_VERSION = '0.4.0';
 export const store = {
   get(k) {
     try { return localStorage.getItem(k) || ''; } catch (e) { return ''; }

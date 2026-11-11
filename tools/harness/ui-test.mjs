@@ -12,6 +12,7 @@ globalThis.confirm = () => true;
 globalThis.fetch = async () => new Response('{}', { status: 200 });
 
 const mod = await import(new URL('../../js/app.js', import.meta.url).href);
+const S = await import(new URL('../../js/state.js', import.meta.url).href);
 for (const k of Object.getOwnPropertyNames(w)) {
   if (typeof w[k] === 'function' && !(k in globalThis)) { try { globalThis[k] = w[k].bind(w); } catch (e) {} }
 }
@@ -19,6 +20,12 @@ const errs = [];
 w.addEventListener('error', (e) => errs.push(String(e.message)));
 
 const $ = (s) => w.document.querySelector(s);
+const stateCleanup = () => {
+  S.state.items = [];
+  S.state.collections = [];
+  w.localStorage.setItem('koo_app_v1', JSON.stringify(S.state));
+  mod.render();
+};
 const txt = () => w.document.body.textContent.replace(/\s+/g, ' ');
 
 function step(name, fn) {
@@ -116,7 +123,7 @@ step('delete item', () => {
   if (st2.items.length !== 0) throw new Error('item not deleted');
 });
 
-step('multi-item form saves each row as a separate searchable item', () => {
+step('multi form groups items in one collection, still searchable', () => {
   w.switchTab('items');
   const st = JSON.parse(w.localStorage.getItem('koo_app_v1') || '{}');
   const space = st.spaces.find((x) => x.name === 'آشپزخانه') || st.spaces[0];
@@ -129,23 +136,60 @@ step('multi-item form saves each row as a separate searchable item', () => {
   w.onMultiSpaceChange(space.id);
   const place = w.document.getElementById('multiPlace');
   if (space.places[0]) place.value = space.places[0].id;
-  const chk1 = w.document.getElementById('dchk_1');
-  chk1.checked = false;
-  w.updateMultiCount();
+  // مجموعه: پیش‌فرض روشن است، اسم می‌دهیم
+  const useColl = w.document.getElementById('multiUseColl');
+  if (!useColl.checked) throw new Error('collection toggle should default on');
+  w.document.getElementById('multiCollName').value = 'کارتن بزرگ';
   const label = w.document.getElementById('multiSaveBtn').textContent;
-  if (!label.includes('۱')) throw new Error('count label: ' + label);
+  if (!label.includes('۲')) throw new Error('count label: ' + label);
   w.saveDetected();
+
   const st2 = JSON.parse(w.localStorage.getItem('koo_app_v1'));
-  if (st2.items.length !== 1) throw new Error('items ' + st2.items.length);
-  const it = st2.items[0];
-  if (it.name !== 'آچار بکس ۱۷') throw new Error('name ' + it.name);
-  if (it.category !== 'car') throw new Error('cat ' + it.category);
-  if (it.spaceId !== space.id) throw new Error('space ' + it.spaceId);
-  if (space.places[0] && it.placeId !== space.places[0].id) throw new Error('place ' + it.placeId);
+  if (st2.items.length !== 2) throw new Error('items ' + st2.items.length);
+  if ((st2.collections || []).length !== 1) throw new Error('collections ' + (st2.collections || []).length);
+  const coll = st2.collections[0];
+  if (coll.name !== 'کارتن بزرگ') throw new Error('coll name ' + coll.name);
+  if (coll.spaceId !== space.id) throw new Error('coll space');
+  if (st2.items.some((it) => it.collectionId !== coll.id)) throw new Error('items not in collection');
+  if (st2.items.find((it) => it.name === 'آچار بکس ۱۷').category !== 'car') throw new Error('category lost');
+
+  // در تب وسایل، بدون جستجو فقط یک کارت مجموعه دیده می‌شود
+  w.switchTab('items');
+  if (w.document.querySelectorAll('.coll-card').length !== 1) throw new Error('collection card missing');
+  if (w.document.querySelectorAll('.item-card').length !== 0) throw new Error('items listed separately while collapsed');
+  w.toggleColl(coll.id);
+  if (!txt().includes('آچار بکس ۱۷') || !txt().includes('پیچ‌گوشتی چهارسو')) throw new Error('expanded items missing');
+
+  // جستجو، آیتم‌های داخل مجموعه را جدا نشان می‌دهد
   const inp = w.document.getElementById('searchInput');
   inp.value = 'آچار';
   inp.dispatchEvent(new w.Event('input', { bubbles: true }));
-  if (!txt().includes('آچار بکس ۱۷')) throw new Error('not searchable after multi save');
+  if (!txt().includes('آچار بکس ۱۷')) throw new Error('not searchable inside collection');
+  if (txt().includes('پیچ‌گوشتی چهارسو')) throw new Error('search shows unrelated item');
+});
+
+step('user can add a missing item in the multi form', () => {
+  w.switchTab('items');
+  w.showMultiForm([{ name: 'کابل تایپ‌سی', category: 'cable', note: '' }]);
+  w.addDetRow();
+  const last = w.document.querySelectorAll('.det-row').length - 1;
+  const nameEl = w.document.getElementById('dname_' + last);
+  if (!nameEl) throw new Error('new row not added');
+  nameEl.value = 'آداپتور ۶۵ وات';
+  const catEl = w.document.getElementById('dcat_' + last);
+  catEl.value = 'laptop';
+  // مجموعه را خاموش می‌کنیم تا آیتم‌ها آزاد بمانند
+  const useColl = w.document.getElementById('multiUseColl');
+  useColl.checked = false;
+  w.updateMultiCount();
+  w.saveDetected();
+  const st = JSON.parse(w.localStorage.getItem('koo_app_v1'));
+  const added = st.items.find((it) => it.name === 'آداپتور ۶۵ وات');
+  if (!added) throw new Error('manual item not saved');
+  if (added.category !== 'laptop') throw new Error('manual category');
+  if (added.collectionId) throw new Error('should not join collection');
+  // پاک‌سازی برای تست‌های بعدی
+  stateCleanup();
 });
 
 step('AI key saves from settings (inline onclick works)', () => {

@@ -115,6 +115,7 @@ export function defaultState() {
     updatedAt: Date.now(),
     rev: 0,
     spaces: [],
+    collections: [],
     items: [],
   };
 }
@@ -131,6 +132,7 @@ export function loadState() {
     const parsed = JSON.parse(raw);
     state = Object.assign(defaultState(), parsed);
     if (!Array.isArray(state.spaces)) state.spaces = [];
+    if (!Array.isArray(state.collections)) state.collections = [];
     if (!Array.isArray(state.items)) state.items = [];
     return state;
   } catch (e) {
@@ -171,7 +173,10 @@ export function persistLocal() {
 
 export function replaceState(next) {
   state = Object.assign(defaultState(), next);
-  try { store.set(KEY, JSON.stringify(state)); } catch (e) {}
+  if (!Array.isArray(state.spaces)) state.spaces = [];
+  if (!Array.isArray(state.collections)) state.collections = [];
+  if (!Array.isArray(state.items)) state.items = [];
+  store.set(KEY, JSON.stringify(state));
 }
 
 export function hasLocalData(s) {
@@ -207,6 +212,7 @@ export function mergeStates(local, remote) {
     version: 1,
     bookId: lb || rb,
     spaces: mergeById(local.spaces, remote.spaces),
+    collections: mergeById(local.collections || [], remote.collections || []),
     items: mergeById(local.items, remote.items),
     updatedAt: Math.max(local.updatedAt || 0, remote.updatedAt || 0),
     rev: Math.max(local.rev || 0, remote.rev || 0),
@@ -223,10 +229,14 @@ export function fingerprint(s) {
       id: sp.id, name: sp.name, icon: sp.icon, color: sp.color,
       places: (sp.places || []).slice().sort(byId).map((p) => ({ id: p.id, name: p.name })),
     })).sort(byId),
+    collections: (s.collections || []).map((c) => ({
+      id: c.id, name: c.name, spaceId: c.spaceId || '', placeId: c.placeId || '',
+      note: c.note || '', photo: c.photo || '', createdAt: c.createdAt || 0, updatedAt: c.updatedAt || 0,
+    })).sort(byId),
     items: (s.items || []).map((it) => ({
       id: it.id, name: it.name, category: it.category, spaceId: it.spaceId || '',
-      placeId: it.placeId || '', note: it.note || '', photo: it.photo || '',
-      createdAt: it.createdAt || 0, updatedAt: it.updatedAt || 0,
+      placeId: it.placeId || '', collectionId: it.collectionId || '', note: it.note || '',
+      photo: it.photo || '', createdAt: it.createdAt || 0, updatedAt: it.updatedAt || 0,
     })).sort(byId),
   };
   return JSON.stringify(canon);
@@ -241,12 +251,22 @@ export function getPlace(spaceId, placeId) {
   if (!s) return null;
   return (s.places || []).find((p) => p.id === placeId) || null;
 }
+export function getCollection(id) {
+  return (state.collections || []).find((c) => c.id === id) || null;
+}
+export function collectionsIn(spaceId, placeId) {
+  const pid = placeId || '';
+  return (state.collections || []).filter((c) => c.spaceId === spaceId && (c.placeId || '') === pid);
+}
 export function locationText(item) {
   const s = getSpace(item.spaceId);
   const p = getPlace(item.spaceId, item.placeId);
-  if (s && p) return s.name + ' › ' + p.name;
-  if (s) return s.name;
-  return 'بدون مکان';
+  const c = item.collectionId ? getCollection(item.collectionId) : null;
+  const parts = [];
+  if (s) parts.push(s.name);
+  if (p) parts.push(p.name);
+  if (c && (!item.spaceId || c.spaceId === item.spaceId)) parts.push(c.name);
+  return parts.length ? parts.join(' › ') : 'بدون مکان';
 }
 export function itemsInPlace(spaceId, placeId) {
   return state.items.filter((it) => it.spaceId === spaceId && it.placeId === placeId);

@@ -144,15 +144,20 @@ const SYNC_WORKER = 'https://koo-sync.<account>.workers.dev';
     { "id": "id_...", "name": "آشپزخانه", "icon": "🍳", "color": "#f97316",
       "places": [{ "id": "id_...", "name": "کابینت بالا" }] }
   ],
+  "collections": [
+    { "id": "id_...", "name": "کارتن بزرگ", "icon": "🧰",
+      "spaceId": "id_...", "placeId": "id_...", "note": "", "createdAt": 0, "updatedAt": 0 }
+  ],
   "items": [
     { "id": "id_...", "name": "کابل تایپ‌سی", "category": "cable",
-      "spaceId": "id_...", "placeId": "id_...", "note": "", "photo": "data:image/jpeg;base64,...",
+      "spaceId": "id_...", "placeId": "id_...", "collectionId": "id_...", "note": "", "photo": "data:image/jpeg;base64,...",
       "createdAt": 1730000000000, "updatedAt": 1730000000000 }
   ]
 }
 ```
 
-- **مرج:** اول `bookId`؛ اگر یکی بود، فضاها و وسایل با `id` مرج می‌شوند و `updatedAt` جدیدتر برنده است.
+- **مرج:** اول `bookId`؛ اگر یکی بود، فضاها، مجموعه‌ها و وسایل با `id` مرج می‌شوند و `updatedAt` جدیدتر برنده است.
+- **مجموعه (collection):** یک جعبه/کارتن اختیاری داخل یک فضا و جا. وسیله با `collectionId` به آن وصل می‌شود و در جستجو همچنان مستقل است. حذف مجموعه، وسایلش را حذف نمی‌کند.
 - **اثر انگشت:** برای تشخیص «تغییری هست یا نه»؛ به `updatedAt`/`rev` و ترتیب لیست‌ها حساس نیست.
 - **درایو:** فایل `koo-data.json`. اگر پیدا نشد ساخته می‌شود؛ اگر محلی داده باشد و ابری خالی، اول push می‌شود.
 - **بکاپ:** «بکاپ آرشیو» یک فایل `koo-backup-YYYY-MM-DD.json` در درایو می‌سازد.

@@ -2,7 +2,7 @@
 import { store, toast, uid, esc, toFa, APP_VERSION } from './utils.js';
 import {
   state, loadState, persistLocal, replaceState, TEMPLATES, CATEGORIES, catById,
-  getSpace, getPlace, locationText, ONBOARDED_KEY,
+  getSpace, getPlace, getCollection, collectionsIn, locationText, ONBOARDED_KEY,
 } from './state.js';
 import {
   hasGeminiKey, saveGeminiKey, clearGeminiKey, geminiKeyMask, testGeminiConnection, recognizeItem, recognizeItems, makeThumb,
@@ -21,6 +21,11 @@ let tempSpaceId = '';
 let aiBusy = false;
 let multiItems = [];
 let multiPhoto = '';
+let multiSpaceId = '';
+let multiPlaceId = '';
+let multiUseColl = true;
+let multiCollName = '';
+const expandedColl = new Set();
 
 const $ = (id) => document.getElementById(id);
 
@@ -129,6 +134,52 @@ function filteredItems() {
   return list;
 }
 
+function isFlatView() {
+  return !!searchQ || filterCat !== 'all' || filterSpace !== 'all';
+}
+
+function collectionGroupHTML(coll) {
+  const its = state.items
+    .filter((it) => it.collectionId === coll.id)
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fa'));
+  const open = expandedColl.has(coll.id);
+  const loc = [getSpace(coll.spaceId) ? getSpace(coll.spaceId).name : '', getPlace(coll.spaceId, coll.placeId) ? getPlace(coll.spaceId, coll.placeId).name : '']
+    .filter(Boolean).join(' › ');
+  return `
+    <div class="coll-card">
+      <div class="coll-head" onclick="toggleColl('${coll.id}')">
+        <span class="coll-icon">🧰</span>
+        <div class="coll-title">
+          <b>${esc(coll.name)}</b>
+          <span>${toFa(its.length)} وسیله${loc ? ' · ' + esc(loc) : ''}</span>
+        </div>
+        <button class="mini" onclick="event.stopPropagation();renameColl('${coll.id}')" title="تغییر نام">✏️</button>
+        <button class="mini danger" onclick="event.stopPropagation();deleteColl('${coll.id}')" title="حذف مجموعه">🗑</button>
+        <span class="chev">${open ? '▾' : '›'}</span>
+      </div>
+      ${open ? `<div class="coll-body">
+        ${its.length ? its.map((it) => itemCardHTML(it, true)).join('') : '<span class="muted small">خالی است</span>'}
+      </div>` : ''}
+    </div>`;
+}
+
+function groupedListHTML(list) {
+  const entries = [];
+  for (const c of state.collections) {
+    const its = list.filter((it) => it.collectionId === c.id);
+    if (!its.length) continue;
+    entries.push({ ts: Math.max(...its.map((i) => i.updatedAt || 0)), type: 'coll', coll: c });
+  }
+  for (const it of list) {
+    if (it.collectionId && state.collections.some((c) => c.id === it.collectionId)) continue;
+    entries.push({ ts: it.updatedAt || 0, type: 'item', item: it });
+  }
+  entries.sort((a, b) => b.ts - a.ts);
+  return entries
+    .map((e) => (e.type === 'coll' ? collectionGroupHTML(e.coll) : itemCardHTML(e.item)))
+    .join('');
+}
+
 function itemsHTML() {
   const list = filteredItems();
   const total = state.items.length;
@@ -152,7 +203,7 @@ function itemsHTML() {
     ` : ''}
     ${list.length === 0 ? emptyItemsHTML() : `
       <div class="item-list">
-        ${list.map((it) => itemCardHTML(it)).join('')}
+        ${isFlatView() ? list.map((it) => itemCardHTML(it)).join('') : groupedListHTML(list)}
       </div>
     `}
   `;
@@ -166,14 +217,14 @@ function emptyItemsHTML() {
 }
 function total0() { return state.items.length === 0; }
 
-function itemCardHTML(it) {
+function itemCardHTML(it, inGroup) {
   const cat = catById(it.category);
   return `
-    <div class="item-card" onclick="openEditItem('${it.id}')">
+    <div class="item-card${inGroup ? ' inside' : ''}" onclick="openEditItem('${it.id}')">
       ${it.photo ? `<img class="item-thumb" src="${it.photo}" alt="">` : `<div class="item-thumb ph">${cat.icon}</div>`}
       <div class="item-info">
         <b>${esc(it.name)}</b>
-        <span class="loc">📍 ${esc(locationText(it))}</span>
+        ${inGroup ? '' : `<span class="loc">📍 ${esc(locationText(it))}</span>`}
         <span class="cat">${cat.icon} ${cat.label}</span>
       </div>
       <span class="chev">›</span>
@@ -181,6 +232,30 @@ function itemCardHTML(it) {
   `;
 }
 
+window.renameColl = (id) => {
+  const c = getCollection(id);
+  if (!c) return;
+  const name = prompt('اسم جدید مجموعه:', c.name);
+  if (!name || !name.trim()) return;
+  c.name = name.trim().slice(0, 60);
+  c.updatedAt = Date.now();
+  persistLocal();
+  render();
+};
+window.deleteColl = (id) => {
+  if (!confirm('این مجموعه حذف شود؟ وسایلش می‌مانند و فقط از مجموعه خارج می‌شوند.')) return;
+  state.collections = state.collections.filter((c) => c.id !== id);
+  state.items.forEach((it) => { if (it.collectionId === id) it.collectionId = ''; });
+  expandedColl.delete(id);
+  persistLocal();
+  render();
+};
+
+window.toggleColl = (id) => {
+  if (expandedColl.has(id)) expandedColl.delete(id);
+  else expandedColl.add(id);
+  render();
+};
 window.setCat = (id) => { filterCat = id; render(); };
 window.setSpaceFilter = (id) => { filterSpace = id; render(); };
 
@@ -236,15 +311,37 @@ function spacesHTML() {
                     <button class="mini" onclick="renamePlace('${s.id}','${p.id}')">✏️</button>
                     <button class="mini danger" onclick="deletePlace('${s.id}','${p.id}')">🗑</button>
                   </div>
-                  ${items.length ? items.map((it) => `<div class="place-item" onclick="openEditItem('${it.id}')">${it.photo ? `<img src="${it.photo}" class="mini-thumb">` : ''}<span>${esc(it.name)}</span></div>`).join('') : '<span class="muted small">خالی</span>'}
+                  ${placeItemsHTML(s.id, p.id, items)}
                 </div>`;
               }).join('')}
+              ${(() => {
+                const places = s.places || [];
+                const loose = state.items.filter((it) => it.spaceId === s.id && !places.some((p) => p.id === it.placeId));
+                if (!loose.length) return '';
+                return `<div class="place-row">
+                  <div class="place-head"><b>📂 بدون جا</b><span class="muted">${toFa(loose.length)} وسیله</span></div>
+                  ${placeItemsHTML(s.id, '', loose)}
+                </div>`;
+              })()}
             </div>
           ` : ''}
         </div>`;
       }).join('')}
     </div>
   `;
+}
+
+function placeItemsHTML(spaceId, placeId, items) {
+  const row = (it) => `<div class="place-item" onclick="openEditItem('${it.id}')">${it.photo ? `<img src="${it.photo}" class="mini-thumb">` : ''}<span>${esc(it.name)}</span></div>`;
+  const colls = collectionsIn(spaceId, placeId).filter((c) => items.some((it) => it.collectionId === c.id));
+  let html = '';
+  for (const c of colls) {
+    const its = items.filter((it) => it.collectionId === c.id);
+    html += `<div class="coll-line">🧰 ${esc(c.name)} <span class="muted small">${toFa(its.length)} قلم</span></div>`;
+    html += its.map(row).join('');
+  }
+  html += items.filter((it) => !it.collectionId || !state.collections.some((c) => c.id === it.collectionId)).map(row).join('');
+  return html || '<span class="muted small">خالی</span>';
 }
 
 window.toggleSpace = (id) => { expandedSpace = expandedSpace === id ? null : id; render(); };
@@ -345,7 +442,7 @@ window.importData = (input) => {
 };
 window.resetAll = () => {
   if (!confirm('همه وسایل و فضاها پاک بشن؟')) return;
-  replaceState({ version: 1, bookId: uid(), updatedAt: Date.now(), rev: 0, spaces: [], items: [] });
+  replaceState({ version: 1, bookId: uid(), updatedAt: Date.now(), rev: 0, spaces: [], collections: [], items: [] });
   store.set(ONBOARDED_KEY, '');
   render();
 };
@@ -363,11 +460,22 @@ window.closeModal = () => {
   tempPhotoData = '';
   multiItems = [];
   multiPhoto = '';
+  multiSpaceId = '';
+  multiPlaceId = '';
+  multiCollName = '';
 };
 
 function spaceOptions(selected) {
   return state.spaces.map((s) => `<option value="${s.id}" ${s.id === selected ? 'selected' : ''}>${s.icon} ${esc(s.name)}</option>`).join('');
 }
+function collOptions(spaceId, placeId, selected) {
+  const list = (state.collections || []).filter(
+    (c) => c.spaceId === spaceId && (!placeId || c.placeId === placeId)
+  );
+  return '<option value="">— بدون مجموعه —</option>' +
+    list.map((c) => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>🧰 ${esc(c.name)}</option>`).join('');
+}
+
 function placeOptions(spaceId, selected) {
   const s = getSpace(spaceId);
   if (!s || !s.places || !s.places.length) return '<option value="">— جایی نیست —</option>';
@@ -400,7 +508,10 @@ window.openAddItem = () => {
     <label>فضا</label>
     <select class="input" id="itemSpace" onchange="onSpaceChange(this.value)">${spaceOptions(tempSpaceId)}</select>
     <label>جا</label>
-    <select class="input" id="itemPlace">${placeOptions(tempSpaceId, '')}</select>
+    <select class="input" id="itemPlace" onchange="onPlaceChange(this.value)">${placeOptions(tempSpaceId, '')}</select>
+    <label>مجموعه / جعبه (اختیاری)</label>
+    <select class="input" id="itemColl">${collOptions(tempSpaceId, '', '')}</select>
+    <button class="btn sm" onclick="createCollInline()">＋ مجموعهٔ جدید</button>
     <label>یادداشت (اختیاری)</label>
     <input class="input" id="itemNote" placeholder="مثلاً تو جیب زیپ‌دار">
     <div class="row gap">
@@ -434,7 +545,10 @@ window.openEditItem = (id) => {
     <label>فضا</label>
     <select class="input" id="itemSpace" onchange="onSpaceChange(this.value)">${spaceOptions(tempSpaceId)}</select>
     <label>جا</label>
-    <select class="input" id="itemPlace">${placeOptions(tempSpaceId, it.placeId)}</select>
+    <select class="input" id="itemPlace" onchange="onPlaceChange(this.value)">${placeOptions(tempSpaceId, it.placeId)}</select>
+    <label>مجموعه / جعبه (اختیاری)</label>
+    <select class="input" id="itemColl">${collOptions(tempSpaceId, it.placeId, it.collectionId || '')}</select>
+    <button class="btn sm" onclick="createCollInline()">＋ مجموعهٔ جدید</button>
     <label>یادداشت</label>
     <input class="input" id="itemNote" value="${esc(it.note || '')}">
     <div class="row gap">
@@ -449,6 +563,28 @@ window.onSpaceChange = (spaceId) => {
   tempSpaceId = spaceId;
   const el = $('itemPlace');
   if (el) el.innerHTML = placeOptions(spaceId, '');
+  const cl = $('itemColl');
+  if (cl) cl.innerHTML = collOptions(spaceId, '', '');
+};
+window.onPlaceChange = (placeId) => {
+  const cl = $('itemColl');
+  if (cl) cl.innerHTML = collOptions(tempSpaceId, placeId, '');
+};
+window.createCollInline = () => {
+  const name = prompt('اسم مجموعه یا جعبه (مثلاً «کارتن بزرگ»):');
+  if (!name || !name.trim()) return;
+  const spaceId = $('itemSpace') ? $('itemSpace').value : '';
+  const placeId = $('itemPlace') ? $('itemPlace').value : '';
+  const now = Date.now();
+  const c = { id: uid(), name: name.trim().slice(0, 60), icon: '🧰', spaceId, placeId, note: '', createdAt: now, updatedAt: now };
+  state.collections.push(c);
+  persistLocal();
+  const cl = $('itemColl');
+  if (cl) {
+    cl.innerHTML = collOptions(spaceId, placeId, c.id);
+    cl.value = c.id;
+  }
+  toast('مجموعه ساخته شد؛ وسیله در آن ثبت می‌شود');
 };
 window.onPhotoChange = async (input) => {
   const f = input.files && input.files[0];
@@ -519,35 +655,103 @@ window.runMultiAI = async () => {
 };
 
 window.showMultiForm = (items) => {
-  multiItems = (items || []).slice(0, 15);
+  multiItems = (items || []).slice(0, 15).map((it) => ({
+    name: it.name || '', category: it.category || 'other', note: it.note || '', _on: true,
+  }));
   if (!multiItems.length) { toast('چیزی برای افزودن نیست'); return; }
-  const sid = tempSpaceId || (state.spaces[0] && state.spaces[0].id) || '';
+  multiSpaceId = tempSpaceId || (state.spaces[0] && state.spaces[0].id) || '';
+  multiPlaceId = '';
+  multiUseColl = multiItems.length > 1;
+  multiCollName = '';
+  renderMultiForm();
+};
+
+function syncMultiEdits() {
+  multiItems.forEach((it, i) => {
+    const n = $('dname_' + i);
+    const c = $('dcat_' + i);
+    const k = $('dchk_' + i);
+    if (n) it.name = n.value;
+    if (c) it.category = c.value;
+    if (k) it._on = k.checked;
+  });
+  const sp = $('multiSpace');
+  const pl = $('multiPlace');
+  const nm = $('multiCollName');
+  const uc = $('multiUseColl');
+  if (sp) multiSpaceId = sp.value;
+  if (pl) multiPlaceId = pl.value;
+  if (nm) multiCollName = nm.value;
+  if (uc) multiUseColl = uc.checked;
+}
+
+function renderMultiForm() {
+  const sid = multiSpaceId;
+  const picked = multiItems.filter((it) => it._on !== false && String(it.name || '').trim()).length;
   openModal(`
     <h3>🧾 ${toFa(multiItems.length)} وسیله در عکس</h3>
-    <p class="muted small">هر قلم جداگانه ثبت و جستجو می‌شود. اسم‌ها را چک کن، هر کدام را نمی‌خواهی تیکش را بردار، و جا را یک‌بار انتخاب کن.</p>
+    <p class="muted small">هر قلم جداگانه ثبت و جستجو می‌شود، ولی می‌توانی همه را در یک مجموعه/جعبه نگه داری تا شلوغ نشود. اگر چیزی جا افتاده، با دکمهٔ پایین اضافه کن.</p>
     ${state.spaces.length === 0 ? '<p class="muted small">هنوز فضایی نساختی؛ وسایل بدون مکان ثبت می‌شوند و بعداً می‌توانی ویرایششان کنی.</p>' : ''}
     <div class="row gap tight">
       <div class="flex1"><label>فضا</label><select class="input" id="multiSpace" onchange="onMultiSpaceChange(this.value)">${spaceOptions(sid)}</select></div>
-      <div class="flex1"><label>جا</label><select class="input" id="multiPlace">${placeOptions(sid, '')}</select></div>
+      <div class="flex1"><label>جا</label><select class="input" id="multiPlace" onchange="syncMultiEdits()">${placeOptions(sid, multiPlaceId)}</select></div>
+    </div>
+    <label class="chk-row">
+      <input type="checkbox" id="multiUseColl" ${multiUseColl ? 'checked' : ''} onchange="onMultiCollToggle(this.checked)">
+      <span>همه با هم در یک مجموعه / جعبه</span>
+    </label>
+    <div id="collWrap" ${multiUseColl ? '' : 'hidden'}>
+      <input class="input" id="multiCollName" value="${esc(multiCollName)}" placeholder="اسم مجموعه، مثلاً کارتن بزرگ">
     </div>
     <div class="det-list">
       ${multiItems.map((it, i) => `
         <div class="det-row">
-          <input type="checkbox" class="det-chk" id="dchk_${i}" checked onchange="updateMultiCount()">
-          <input class="input det-name" id="dname_${i}" value="${esc(it.name)}" aria-label="نام وسیله">
+          <input type="checkbox" class="det-chk" id="dchk_${i}" ${it._on !== false ? 'checked' : ''} onchange="updateMultiCount()" aria-label="انتخاب">
+          <input class="input det-name" id="dname_${i}" value="${esc(it.name)}" placeholder="اسم وسیله" aria-label="نام وسیله" oninput="updateMultiCount()">
           <select class="input det-cat" id="dcat_${i}" aria-label="دسته">${CATEGORIES.map((c) => `<option value="${c.id}" ${c.id === it.category ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('')}</select>
+          <button class="det-x" title="حذف از لیست" onclick="removeDetRow(${i})">×</button>
         </div>`).join('')}
     </div>
+    <button class="btn block" onclick="addDetRow()">＋ افزودن قلمِ جاافتاده</button>
     <div class="row gap">
-      <button class="btn primary flex1" id="multiSaveBtn" onclick="saveDetected()">افزودن</button>
+      <button class="btn primary flex1" id="multiSaveBtn" onclick="saveDetected()">افزودن${picked ? ' ' + toFa(picked) + ' وسیله' : ''}</button>
       <button class="btn" onclick="closeModal()">لغو</button>
     </div>
   `);
   updateMultiCount();
+}
+
+window.addDetRow = () => {
+  syncMultiEdits();
+  multiItems.push({ name: '', category: 'other', note: '', _on: true });
+  renderMultiForm();
+  setTimeout(() => {
+    const el = $('dname_' + (multiItems.length - 1));
+    if (el) el.focus();
+  }, 40);
+};
+
+window.removeDetRow = (i) => {
+  syncMultiEdits();
+  multiItems.splice(i, 1);
+  if (!multiItems.length) { closeModal(); return; }
+  renderMultiForm();
+};
+
+window.onMultiCollToggle = (on) => {
+  multiUseColl = !!on;
+  const w = $('collWrap');
+  if (w) w.hidden = !multiUseColl;
+  if (multiUseColl) {
+    const el = $('multiCollName');
+    if (el && !el.value) el.focus();
+  }
 };
 
 window.onMultiSpaceChange = (spaceId) => {
-  tempSpaceId = spaceId;
+  syncMultiEdits();
+  multiSpaceId = spaceId;
+  multiPlaceId = '';
   const el = $('multiPlace');
   if (el) el.innerHTML = placeOptions(spaceId, '');
 };
@@ -556,7 +760,8 @@ window.updateMultiCount = () => {
   let n = 0;
   multiItems.forEach((_, i) => {
     const c = $('dchk_' + i);
-    if (c && c.checked) n++;
+    const nm = $('dname_' + i);
+    if (c && c.checked && nm && nm.value.trim()) n++;
   });
   const b = $('multiSaveBtn');
   if (b) {
@@ -566,37 +771,55 @@ window.updateMultiCount = () => {
 };
 
 window.saveDetected = () => {
-  const spaceId = ($('multiSpace') && $('multiSpace').value) || '';
-  const placeId = ($('multiPlace') && $('multiPlace').value) || '';
+  syncMultiEdits();
+  const spaceId = multiSpaceId;
+  const placeId = multiPlaceId;
+  const picked = multiItems.filter((it) => it._on !== false && String(it.name || '').trim());
+  if (!picked.length) { toast('حداقل یک وسیله با اسم بنویس'); return; }
+
+  let collId = '';
+  let collName = '';
+  if (multiUseColl) {
+    const sp = getSpace(spaceId);
+    const pl = getPlace(spaceId, placeId);
+    collName = String(multiCollName || '').trim() ||
+      ('جعبهٔ ' + (pl ? pl.name : sp ? sp.name : 'وسایل'));
+    const now0 = Date.now();
+    const coll = {
+      id: uid(), name: collName.slice(0, 60), icon: '🧰', spaceId, placeId,
+      note: '', createdAt: now0, updatedAt: now0,
+    };
+    state.collections.push(coll);
+    collId = coll.id;
+  }
+
   const now = Date.now();
-  let added = 0;
-  multiItems.forEach((it, i) => {
-    const chk = $('dchk_' + i);
-    if (chk && !chk.checked) return;
-    const nameEl = $('dname_' + i);
-    const name = ((nameEl && nameEl.value) || it.name || '').trim();
-    if (!name) return;
-    const catEl = $('dcat_' + i);
-    let cat = (catEl && catEl.value) || it.category || 'other';
+  picked.forEach((it) => {
+    let cat = it.category || 'other';
     if (!CATEGORIES.some((c) => c.id === cat)) cat = 'other';
     state.items.push({
       id: uid(),
-      name: name.slice(0, 80),
+      name: String(it.name).trim().slice(0, 80),
       category: cat,
       spaceId,
       placeId,
+      collectionId: collId,
       note: it.note || '',
       photo: multiPhoto || '',
       createdAt: now,
       updatedAt: now,
     });
-    added++;
   });
-  if (!added) { toast('چیزی انتخاب نشده'); return; }
+
   persistLocal();
   closeModal();
   tab = 'items';
-  toast(toFa(added) + ' وسیله اضافه شد ✓');
+  searchQ = '';
+  filterCat = 'all';
+  filterSpace = 'all';
+  toast(collId
+    ? toFa(picked.length) + ' وسیله در «' + collName + '» ثبت شد ✓'
+    : toFa(picked.length) + ' وسیله اضافه شد ✓');
   render();
 };
 
@@ -606,23 +829,35 @@ window.saveItem = () => {
   const cat = $('itemCat') ? $('itemCat').value : 'other';
   const spaceId = $('itemSpace') ? $('itemSpace').value : '';
   const placeId = $('itemPlace') ? $('itemPlace').value : '';
+  let collectionId = $('itemColl') ? $('itemColl').value : '';
+  const coll = collectionId ? getCollection(collectionId) : null;
+  if (!coll || coll.spaceId !== spaceId) collectionId = '';
   const note = $('itemNote') ? $('itemNote').value.trim() : '';
   const now = Date.now();
   if (editingItemId) {
     const it = state.items.find((x) => x.id === editingItemId);
-    if (it) Object.assign(it, { name, category: cat, spaceId, placeId, note, photo: tempPhotoData || it.photo || '', updatedAt: now });
+    if (it) Object.assign(it, { name, category: cat, spaceId, placeId, collectionId, note, photo: tempPhotoData || it.photo || '', updatedAt: now });
   } else {
-    state.items.push({ id: uid(), name, category: cat, spaceId, placeId, note, photo: tempPhotoData || '', createdAt: now, updatedAt: now });
+    state.items.push({ id: uid(), name, category: cat, spaceId, placeId, collectionId, note, photo: tempPhotoData || '', createdAt: now, updatedAt: now });
   }
   persistLocal();
   closeModal();
+  tab = 'items';
+  searchQ = '';
+  filterCat = 'all';
+  filterSpace = 'all';
   toast('ذخیره شد ✓');
   render();
 };
 
 window.deleteItem = (id) => {
   if (!confirm('این وسیله حذف بشه؟')) return;
+  const it = state.items.find((x) => x.id === id);
+  const collId = it ? it.collectionId : '';
   state.items = state.items.filter((x) => x.id !== id);
+  if (collId && !state.items.some((x) => x.collectionId === collId)) {
+    state.collections = (state.collections || []).filter((c) => c.id !== collId);
+  }
   persistLocal();
   closeModal();
   render();
@@ -680,7 +915,8 @@ window.updateSpace = (id) => {
 window.deleteSpace = (id) => {
   if (!confirm('این فضا و جاهاش حذف بشن؟ (وسایلش بدون مکان می‌مونن)')) return;
   state.spaces = state.spaces.filter((s) => s.id !== id);
-  state.items.forEach((it) => { if (it.spaceId === id) { it.spaceId = ''; it.placeId = ''; } });
+  state.collections = (state.collections || []).filter((c) => c.spaceId !== id);
+  state.items.forEach((it) => { if (it.spaceId === id) { it.spaceId = ''; it.placeId = ''; it.collectionId = ''; } });
   persistLocal();
   render();
 };
@@ -720,7 +956,10 @@ window.deletePlace = (spaceId, placeId) => {
   const s = getSpace(spaceId);
   if (!s) return;
   s.places = (s.places || []).filter((p) => p.id !== placeId);
-  state.items.forEach((it) => { if (it.spaceId === spaceId && it.placeId === placeId) it.placeId = ''; });
+  state.collections = (state.collections || []).filter((c) => !(c.spaceId === spaceId && c.placeId === placeId));
+  state.items.forEach((it) => {
+    if (it.spaceId === spaceId && it.placeId === placeId) { it.placeId = ''; it.collectionId = ''; }
+  });
   persistLocal();
   render();
 };

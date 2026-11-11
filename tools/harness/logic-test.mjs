@@ -48,6 +48,29 @@ ok('locationText combines space › place', () => {
   if (S.locationText({ spaceId: '', placeId: '' }) !== 'بدون مکان') throw new Error('no-space text');
 });
 
+ok('merge keeps collections from both sides', () => {
+  const a = { version: 1, bookId: 'b', updatedAt: 10, rev: 1, spaces: [], collections: [{ id: 'c1', name: 'کارتن', updatedAt: 5 }], items: [] };
+  const b = { version: 1, bookId: 'b', updatedAt: 20, rev: 2, spaces: [], collections: [{ id: 'c1', name: 'کارتن قدیمی', updatedAt: 1 }, { id: 'c2', name: 'جعبه', updatedAt: 2 }], items: [] };
+  const m = S.mergeStates(a, b);
+  if (m.collections.length !== 2) throw new Error('collections ' + m.collections.length);
+  if (m.collections.find((c) => c.id === 'c1').name !== 'کارتن') throw new Error('newer collection lost');
+});
+
+ok('merge tolerates old data without collections', () => {
+  const old = { version: 1, bookId: 'b', updatedAt: 1, rev: 1, spaces: [], items: [{ id: 'i1', updatedAt: 1 }] };
+  const m = S.mergeStates(old, { version: 1, bookId: 'b', updatedAt: 2, rev: 2, spaces: [], items: [] });
+  if (!Array.isArray(m.collections)) throw new Error('collections not array');
+  if (m.items.length !== 1) throw new Error('item lost');
+});
+
+ok('locationText includes collection name', () => {
+  S.state.spaces = [{ id: 's1', name: 'آشپزخانه', places: [{ id: 'p1', name: 'کشو' }] }];
+  S.state.collections = [{ id: 'c1', name: 'کارتن بزرگ', spaceId: 's1', placeId: 'p1' }];
+  S.state.items = [];
+  const t = S.locationText({ spaceId: 's1', placeId: 'p1', collectionId: 'c1' });
+  if (t !== 'آشپزخانه › کشو › کارتن بزرگ') throw new Error(t);
+});
+
 // ── AI routing ──
 const realFetch = globalThis.fetch;
 let calls = [];
