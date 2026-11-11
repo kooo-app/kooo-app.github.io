@@ -116,6 +116,38 @@ step('delete item', () => {
   if (st2.items.length !== 0) throw new Error('item not deleted');
 });
 
+step('multi-item form saves each row as a separate searchable item', () => {
+  w.switchTab('items');
+  const st = JSON.parse(w.localStorage.getItem('koo_app_v1') || '{}');
+  const space = st.spaces.find((x) => x.name === 'آشپزخانه') || st.spaces[0];
+  w.showMultiForm([
+    { name: 'آچار بکس ۱۷', category: 'car', note: '۲ عدد' },
+    { name: 'پیچ‌گوشتی چهارسو', category: 'tool', note: '' },
+  ]);
+  const sp = w.document.getElementById('multiSpace');
+  sp.value = space.id;
+  w.onMultiSpaceChange(space.id);
+  const place = w.document.getElementById('multiPlace');
+  if (space.places[0]) place.value = space.places[0].id;
+  const chk1 = w.document.getElementById('dchk_1');
+  chk1.checked = false;
+  w.updateMultiCount();
+  const label = w.document.getElementById('multiSaveBtn').textContent;
+  if (!label.includes('۱')) throw new Error('count label: ' + label);
+  w.saveDetected();
+  const st2 = JSON.parse(w.localStorage.getItem('koo_app_v1'));
+  if (st2.items.length !== 1) throw new Error('items ' + st2.items.length);
+  const it = st2.items[0];
+  if (it.name !== 'آچار بکس ۱۷') throw new Error('name ' + it.name);
+  if (it.category !== 'car') throw new Error('cat ' + it.category);
+  if (it.spaceId !== space.id) throw new Error('space ' + it.spaceId);
+  if (space.places[0] && it.placeId !== space.places[0].id) throw new Error('place ' + it.placeId);
+  const inp = w.document.getElementById('searchInput');
+  inp.value = 'آچار';
+  inp.dispatchEvent(new w.Event('input', { bubbles: true }));
+  if (!txt().includes('آچار بکس ۱۷')) throw new Error('not searchable after multi save');
+});
+
 step('AI key saves from settings (inline onclick works)', () => {
   w.switchTab('settings');
   if (typeof w.saveGeminiKey !== 'function') throw new Error('saveGeminiKey not exposed to window');

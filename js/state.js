@@ -1,6 +1,6 @@
 // state — داده‌های کو: فضاها، جاها و وسایل
 // الگو از تراز: Local-First + یک فایل JSON برای گوگل درایو
-import { store, uid } from './utils.js';
+import { store, uid, toast } from './utils.js';
 
 export const KEY = 'koo_app_v1';
 export const ONBOARDED_KEY = 'koo_onboarded_v1';
@@ -12,6 +12,7 @@ export const CATEGORIES = [
   { id: 'laptop', label: 'لپ‌تاپ و کامپیوتر', icon: '💻' },
   { id: 'wear', label: 'پوشیدنی و شخصی', icon: '👕' },
   { id: 'tool', label: 'ابزار', icon: '🧰' },
+  { id: 'car', label: 'لوازم خودرو', icon: '🚗' },
   { id: 'doc', label: 'مدارک', icon: '📄' },
   { id: 'other', label: 'سایر', icon: '📦' },
 ];
@@ -138,14 +139,29 @@ export function loadState() {
   }
 }
 
+function writeState() {
+  return store.set(KEY, JSON.stringify(state));
+}
+
 export function persistLocal() {
   state.updatedAt = Date.now();
   state.rev = (state.rev || 0) + 1;
-  try {
-    store.set(KEY, JSON.stringify(state));
-  } catch (e) {
-    // localStorage پر شده (عکس‌های زیاد) — کاربر را خبر کن
-    try { store.set(KEY, JSON.stringify({ ...state, items: state.items.map((it) => ({ ...it, photo: '' })) })); } catch (e2) {}
+  if (!writeState()) {
+    // حافظهٔ گوشی پر شده (عکس‌های زیاد): اول عکس وسایل قدیمی‌تر، بعد همهٔ عکس‌ها
+    const keep = new Set(
+      state.items.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).slice(0, 8).map((it) => it.id)
+    );
+    state.items.forEach((it) => { if (!keep.has(it.id)) it.photo = ''; });
+    if (!writeState()) {
+      state.items.forEach((it) => { it.photo = ''; });
+      if (!writeState()) {
+        toast('حافظهٔ گوشی پر است؛ این تغییر ذخیره نشد. چند وسیلهٔ قدیمی را حذف کن یا از خروجی JSON استفاده کن.');
+        return;
+      }
+      toast('حافظهٔ گوشی پر شد؛ عکس‌ها ذخیره نشدند ولی نام و مکان وسایل حفظ شد');
+    } else {
+      toast('حافظهٔ گوشی پر شد؛ عکس وسایل قدیمی‌تر حذف شد');
+    }
   }
   // همگام‌سازی بی‌صدا با درایو (اگر لاگین است)
   try {

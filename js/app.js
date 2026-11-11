@@ -5,7 +5,7 @@ import {
   getSpace, getPlace, locationText, ONBOARDED_KEY,
 } from './state.js';
 import {
-  hasGeminiKey, saveGeminiKey, clearGeminiKey, geminiKeyMask, testGeminiConnection, recognizeItem, makeThumb,
+  hasGeminiKey, saveGeminiKey, clearGeminiKey, geminiKeyMask, testGeminiConnection, recognizeItem, recognizeItems, makeThumb,
 } from './scan.js';
 import { renderSyncCard, initGoogleOnLoad, syncStatusText, updateAvatar, gUser } from './sync.js';
 
@@ -19,6 +19,8 @@ let tempPhotoFile = null;
 let tempPhotoData = '';
 let tempSpaceId = '';
 let aiBusy = false;
+let multiItems = [];
+let multiPhoto = '';
 
 const $ = (id) => document.getElementById(id);
 
@@ -353,7 +355,15 @@ function openModal(html) {
   const root = $('modalRoot');
   if (root) root.innerHTML = `<div class="sheet-back" onclick="closeModal()"><div class="sheet" onclick="event.stopPropagation()">${html}</div></div>`;
 }
-window.closeModal = () => { const r = $('modalRoot'); if (r) r.innerHTML = ''; editingItemId = null; tempPhotoFile = null; tempPhotoData = ''; };
+window.closeModal = () => {
+  const r = $('modalRoot');
+  if (r) r.innerHTML = '';
+  editingItemId = null;
+  tempPhotoFile = null;
+  tempPhotoData = '';
+  multiItems = [];
+  multiPhoto = '';
+};
 
 function spaceOptions(selected) {
   return state.spaces.map((s) => `<option value="${s.id}" ${s.id === selected ? 'selected' : ''}>${s.icon} ${esc(s.name)}</option>`).join('');
@@ -378,7 +388,10 @@ window.openAddItem = () => {
       </label>
       <div class="flex1">
         <input class="input" id="itemName" placeholder="اسم وسیله؛ مثلاً کابل شارژر">
-        <button class="btn sm" id="aiBtn" onclick="runAI()">✨ تشخیص با هوش مصنوعی</button>
+        <div class="row gap tight">
+          <button class="btn sm" id="aiBtn" onclick="runAI()">✨ تشخیص با هوش مصنوعی</button>
+          <button class="btn sm" id="multiBtn" onclick="runMultiAI()">🧾 چند وسیله در عکس</button>
+        </div>
         <div id="aiMsg" class="muted small"></div>
       </div>
     </div>
@@ -448,19 +461,23 @@ window.onPhotoChange = async (input) => {
   } catch (e) { toast('خواندن عکس نشد'); }
 };
 
+async function currentPhotoFile() {
+  if (tempPhotoFile) return tempPhotoFile;
+  if (!tempPhotoData) return null;
+  const res = await fetch(tempPhotoData);
+  const blob = await res.blob();
+  return new File([blob], 'item.jpg', { type: 'image/jpeg' });
+}
+
 window.runAI = async () => {
   if (!hasGeminiKey()) { toast('اول در تنظیمات کلید گوگل را بگذار'); return; }
   if (!tempPhotoFile && !tempPhotoData) { toast('اول عکس بگیر'); return; }
+  if (aiBusy) return;
+  aiBusy = true;
   const msg = $('aiMsg');
   if (msg) msg.textContent = '⏳ در حال تشخیص…';
   try {
-    // اگر فایل اصلی هست از همون استفاده کن، وگرنه از عکس فشرده
-    let file = tempPhotoFile;
-    if (!file && tempPhotoData) {
-      const res = await fetch(tempPhotoData);
-      const blob = await res.blob();
-      file = new File([blob], 'item.jpg', { type: 'image/jpeg' });
-    }
+    const file = await currentPhotoFile();
     const out = await recognizeItem(file);
     const nameEl = $('itemName');
     const catEl = $('itemCat');
@@ -469,7 +486,118 @@ window.runAI = async () => {
     if (msg) msg.textContent = '✓ تشخیص داده شد؛ بررسی کن و ذخیره کن.';
   } catch (e) {
     if (msg) msg.textContent = '✗ ' + (e.message || 'نشد');
+  } finally {
+    aiBusy = false;
   }
+};
+
+// ── چند وسیله در یک عکس ──
+window.runMultiAI = async () => {
+  if (!hasGeminiKey()) { toast('اول در تنظیمات کلید گوگل را بگذار'); return; }
+  if (!tempPhotoFile && !tempPhotoData) { toast('اول عکس بگیر'); return; }
+  if (aiBusy) return;
+  aiBusy = true;
+  const msg = $('aiMsg');
+  const btn = $('multiBtn');
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = '⏳ در حال فهرست‌کردن وسایل عکس…';
+  try {
+    const file = await currentPhotoFile();
+    const items = await recognizeItems(file);
+    if (!items.length) {
+      if (msg) msg.textContent = '✗ وسیلهٔ مشخصی پیدا نشد؛ از نزدیک‌تر و با نور بهتر عکس بگیر';
+      return;
+    }
+    try { multiPhoto = await makeThumb(file, 300, 0.55); } catch (e) { multiPhoto = tempPhotoData || ''; }
+    window.showMultiForm(items);
+  } catch (e) {
+    if (msg) msg.textContent = '✗ ' + (e.message || 'نشد');
+  } finally {
+    aiBusy = false;
+    if (btn) btn.disabled = false;
+  }
+};
+
+window.showMultiForm = (items) => {
+  multiItems = (items || []).slice(0, 15);
+  if (!multiItems.length) { toast('چیزی برای افزودن نیست'); return; }
+  const sid = tempSpaceId || (state.spaces[0] && state.spaces[0].id) || '';
+  openModal(`
+    <h3>🧾 ${toFa(multiItems.length)} وسیله در عکس</h3>
+    <p class="muted small">هر قلم جداگانه ثبت و جستجو می‌شود. اسم‌ها را چک کن، هر کدام را نمی‌خواهی تیکش را بردار، و جا را یک‌بار انتخاب کن.</p>
+    ${state.spaces.length === 0 ? '<p class="muted small">هنوز فضایی نساختی؛ وسایل بدون مکان ثبت می‌شوند و بعداً می‌توانی ویرایششان کنی.</p>' : ''}
+    <div class="row gap tight">
+      <div class="flex1"><label>فضا</label><select class="input" id="multiSpace" onchange="onMultiSpaceChange(this.value)">${spaceOptions(sid)}</select></div>
+      <div class="flex1"><label>جا</label><select class="input" id="multiPlace">${placeOptions(sid, '')}</select></div>
+    </div>
+    <div class="det-list">
+      ${multiItems.map((it, i) => `
+        <div class="det-row">
+          <input type="checkbox" class="det-chk" id="dchk_${i}" checked onchange="updateMultiCount()">
+          <input class="input det-name" id="dname_${i}" value="${esc(it.name)}" aria-label="نام وسیله">
+          <select class="input det-cat" id="dcat_${i}" aria-label="دسته">${CATEGORIES.map((c) => `<option value="${c.id}" ${c.id === it.category ? 'selected' : ''}>${c.icon} ${c.label}</option>`).join('')}</select>
+        </div>`).join('')}
+    </div>
+    <div class="row gap">
+      <button class="btn primary flex1" id="multiSaveBtn" onclick="saveDetected()">افزودن</button>
+      <button class="btn" onclick="closeModal()">لغو</button>
+    </div>
+  `);
+  updateMultiCount();
+};
+
+window.onMultiSpaceChange = (spaceId) => {
+  tempSpaceId = spaceId;
+  const el = $('multiPlace');
+  if (el) el.innerHTML = placeOptions(spaceId, '');
+};
+
+window.updateMultiCount = () => {
+  let n = 0;
+  multiItems.forEach((_, i) => {
+    const c = $('dchk_' + i);
+    if (c && c.checked) n++;
+  });
+  const b = $('multiSaveBtn');
+  if (b) {
+    b.textContent = n ? 'افزودن ' + toFa(n) + ' وسیله' : 'چیزی انتخاب نشده';
+    b.disabled = n === 0;
+  }
+};
+
+window.saveDetected = () => {
+  const spaceId = ($('multiSpace') && $('multiSpace').value) || '';
+  const placeId = ($('multiPlace') && $('multiPlace').value) || '';
+  const now = Date.now();
+  let added = 0;
+  multiItems.forEach((it, i) => {
+    const chk = $('dchk_' + i);
+    if (chk && !chk.checked) return;
+    const nameEl = $('dname_' + i);
+    const name = ((nameEl && nameEl.value) || it.name || '').trim();
+    if (!name) return;
+    const catEl = $('dcat_' + i);
+    let cat = (catEl && catEl.value) || it.category || 'other';
+    if (!CATEGORIES.some((c) => c.id === cat)) cat = 'other';
+    state.items.push({
+      id: uid(),
+      name: name.slice(0, 80),
+      category: cat,
+      spaceId,
+      placeId,
+      note: it.note || '',
+      photo: multiPhoto || '',
+      createdAt: now,
+      updatedAt: now,
+    });
+    added++;
+  });
+  if (!added) { toast('چیزی انتخاب نشده'); return; }
+  persistLocal();
+  closeModal();
+  tab = 'items';
+  toast(toFa(added) + ' وسیله اضافه شد ✓');
+  render();
 };
 
 window.saveItem = () => {

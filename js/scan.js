@@ -140,8 +140,8 @@ export function fileToJpeg(file, max, quality) {
 }
 
 // عکس کوچک برای ذخیره دائمی در لیست وسایل (فاز ۱: داخل JSON درایو)
-export async function makeThumb(file, max) {
-  const b64 = await fileToJpeg(file, max || 480, 0.72);
+export async function makeThumb(file, max, quality) {
+  const b64 = await fileToJpeg(file, max || 480, quality || 0.72);
   return 'data:image/jpeg;base64,' + b64;
 }
 
@@ -155,6 +155,7 @@ const ITEM_PROMPT = `این یک عکس از یک وسیله یا شیء شخص�
 - laptop = لپ‌تاپ و کامپیوتر و لوازم جانبی
 - wear = پوشیدنی و شخصی
 - tool = ابزار
+- car = لوازم یدکی و لوازم خودرو
 - doc = مدارک و کارت
 - other = بقیه
 اگر مطمئن نیستی، other بگذار.
@@ -412,8 +413,23 @@ async function runGemini(prompt, b64, opts) {
   throw new Error(shortErr(lastErr || new Error(b64 ? 'شناسایی نشد' : 'خواندن نشد')));
 }
 
-// شناسایی وسیله از عکس — خروجی: {name, category, note}
-export async function recognizeItem(file) {
+const VALID_CATS = ['phone', 'cable', 'audio', 'laptop', 'wear', 'tool', 'car', 'doc', 'other'];
+
+const MULTI_PROMPT = `این عکس یک قفسه، جعبه، کشو یا محوطه است و ممکن است چند وسیله در آن باشد (مثلاً لوازم یدکی خودرو، کابل و شارژر، ابزار).
+همهٔ وسایلی که با اطمینان می‌بینی را فهرست کن؛ هر کدام یک قلم جداگانه. فقط یک JSON معتبر برگردان، بدون متن اضافه.
+قواعد:
+- نام هر وسیله کوتاه، دقیق و فارسی باشد و برای جستجو به کار بیاید (مثلاً «آچار بکس ۱۷»، «پیچ‌گوشتی چهارسو»، «کابل تایپ‌سی»). از اسم‌های کلی مثل «ابزار» یا «چیز» پرهیز کن.
+- حداکثر ۱۵ قلم؛ وسایل تکراری را یک‌بار بنویس.
+- اگر چند عدد از یک چیز هست، در note بنویس «۲ عدد» و یک قلم ثبت کن.
+- دستهٔ هر قلم فقط یکی از این‌هاست: phone, cable, audio, laptop, wear, tool, car, doc, other
+  (phone=موبایل/شارژر/پاوربانک، cable=کابل و آداپتور، audio=هندزفری و اسپیکر، laptop=لپ‌تاپ و لوازمش، wear=پوشیدنی و شخصی، tool=ابزار، car=لوازم یدکی و خودرو، doc=مدارک، other=بقیه)
+- اگر مطمئن نیستی other بگذار. پس‌زمینه و وسایل کاملاً تار را ننویس.
+- اگر هیچ وسیله‌ای مشخص نبود، لیست خالی بده.
+شکل JSON:
+{"items":[{"name":"نام وسیله","category":"car","note":"توضیح کوتاه اختیاری"}]}`;
+
+// عکس را برای ارسال آماده می‌کند: ۱۲۸۰px و اگر از سقف پل رد شد، فشرده‌تر
+async function prepareB64(file) {
   let b64 = await fileToJpeg(file, 1280, 0.72);
   if (b64.length > 3400000) {
     try {
@@ -421,14 +437,53 @@ export async function recognizeItem(file) {
       if (smaller && smaller.length < b64.length) b64 = smaller;
     } catch (e) {}
   }
+  return b64;
+}
+
+function normalizeItem(raw) {
+  if (!raw || !raw.name) return null;
+  const name = String(raw.name).replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (!name) return null;
+  const cat = VALID_CATS.includes(raw.category) ? raw.category : 'other';
+  return { name, category: cat, note: String(raw.note || '').slice(0, 120) };
+}
+
+// شناسایی وسیله از عکس — خروجی: {name, category, note}
+export async function recognizeItem(file) {
+  const b64 = await prepareB64(file);
   return recognizeImageB64(b64);
+}
+
+// چند وسیله در یک عکس — خروجی: [{name, category, note}, ...]
+export async function recognizeItems(file) {
+  const b64 = await prepareB64(file);
+  return recognizeItemsB64(b64);
+}
+
+export async function recognizeItemsB64(b64) {
+  const raw = await runGemini(MULTI_PROMPT, b64, { jsonMode: true });
+  let list = [];
+  if (Array.isArray(raw)) list = raw;
+  else if (raw && Array.isArray(raw.items)) list = raw.items;
+  else if (raw && raw.name) list = [raw];
+  const out = [];
+  const seen = new Set();
+  for (const r of list) {
+    const it = normalizeItem(r);
+    if (!it) continue;
+    const k = it.name.replace(/\s+/g, ' ').toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(it);
+    if (out.length >= 15) break;
+  }
+  return out;
 }
 
 // جدا شده تا تست‌پذیر باشد (بدون وابستگی به canvas)
 export async function recognizeImageB64(b64) {
   const raw = await runGemini(ITEM_PROMPT, b64, { jsonMode: true });
   if (!raw || !raw.name) throw new Error('در عکس وسیله‌ای پیدا نشد');
-  const validCats = ['phone', 'cable', 'audio', 'laptop', 'wear', 'tool', 'doc', 'other'];
-  const cat = validCats.includes(raw.category) ? raw.category : 'other';
+  const cat = VALID_CATS.includes(raw.category) ? raw.category : 'other';
   return { name: String(raw.name).slice(0, 80), category: cat, note: String(raw.note || '').slice(0, 200) };
 }

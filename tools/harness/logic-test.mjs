@@ -89,6 +89,44 @@ ok('fallback: proxy fails → direct succeeds', async () => {
   if (!calls.some((u) => u.includes('generativelanguage'))) throw new Error('direct not tried');
 });
 
+ok('multi-scan parses items, dedupes and normalizes categories', async () => {
+  mockFetch(() => geminiOk(JSON.stringify({ items: [
+    { name: 'آچار بکس ۱۷', category: 'car', note: '۲ عدد' },
+    { name: 'آچار بکس ۱۷', category: 'car' },
+    { name: 'کابل تایپ‌سی', category: 'cable' },
+    { name: 'چیز عجیب', category: 'space' },
+    { name: '' },
+  ] })));
+  SC.saveDirectOk(true);
+  localStorage.setItem('koo_gemini_key', 'AIzaTEST');
+  const out = await SC.recognizeItemsB64('AAAA');
+  if (out.length !== 3) throw new Error('length ' + out.length);
+  if (out[0].name !== 'آچار بکس ۱۷' || out[0].category !== 'car') throw new Error(JSON.stringify(out[0]));
+  if (out[0].note !== '۲ عدد') throw new Error('note lost');
+  if (out[1].category !== 'cable') throw new Error('cat ' + out[1].category);
+  if (out[2].category !== 'other') throw new Error('fallback cat ' + out[2].category);
+});
+
+ok('multi-scan accepts bare array and a single object', async () => {
+  mockFetch(() => geminiOk('{"items":[]}'));
+  SC.saveDirectOk(true);
+  localStorage.setItem('koo_gemini_key', 'AIzaTEST');
+  let out = await SC.recognizeItemsB64('AAAA');
+  if (out.length !== 0) throw new Error('empty list not respected');
+  mockFetch(() => geminiOk('{"name":"پاوربانک","category":"phone"}'));
+  out = await SC.recognizeItemsB64('AAAA');
+  if (out.length !== 1 || out[0].name !== 'پاوربانک') throw new Error(JSON.stringify(out));
+});
+
+ok('multi-scan caps at 15 items', async () => {
+  const many = Array.from({ length: 20 }, (_, i) => ({ name: 'وسیله ' + (i + 1), category: 'tool' }));
+  mockFetch(() => geminiOk(JSON.stringify({ items: many })));
+  SC.saveDirectOk(true);
+  localStorage.setItem('koo_gemini_key', 'AIzaTEST');
+  const out = await SC.recognizeItemsB64('AAAA');
+  if (out.length !== 15) throw new Error('length ' + out.length);
+});
+
 ok('unknown category falls back to other', async () => {
   mockFetch(() => geminiOk('{"name":"چیز","category":"food"}'));
   SC.saveDirectOk(true);
