@@ -1,6 +1,6 @@
 // اجرای همه تست‌های کو: node run-all.mjs
 import { spawnSync } from 'node:child_process';
-const files = ['ui-test.mjs', 'logic-test.mjs', 'sync-test.mjs'];
+const files = ['ui-test.mjs', 'logic-test.mjs', 'sync-test.mjs', 'version-test.mjs'];
 let bad = 0;
 for (const f of files) {
   console.log('\n▶ ' + f);

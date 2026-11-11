@@ -1,5 +1,5 @@
 // app — رابط کاربری کو
-import { store, toast, uid, esc, toFa } from './utils.js';
+import { store, toast, uid, esc, toFa, APP_VERSION } from './utils.js';
 import {
   state, loadState, persistLocal, replaceState, TEMPLATES, CATEGORIES, catById,
   getSpace, getPlace, locationText, ONBOARDED_KEY,
@@ -293,7 +293,11 @@ function settingsHTML() {
 
     <div class="card">
       <h3>ℹ️ درباره کو</h3>
-      <p class="muted">کو — وسایلم کجاست؟ نسخه اولیه (MVP). داده‌ها اول روی گوشی ذخیره می‌شن و با ورود گوگل، در Google Drive همگام می‌شن.</p>
+      <p class="muted">کو — وسایلم کجاست؟ داده‌ها اول روی گوشی ذخیره می‌شن و با ورود گوگل، در Google Drive همگام می‌شن.</p>
+      <div class="row gap between">
+        <span class="small">نسخه <b>${esc(APP_VERSION)}</b> <span id="updStateText" class="muted"></span></span>
+        <button class="btn sm" id="btnCheckUpd" onclick="checkUpdateNow()">بررسی به‌روزرسانی</button>
+      </div>
     </div>
   `;
 }
@@ -594,8 +598,130 @@ loadState();
 initGoogleOnLoad();
 render();
 
-if ('serviceWorker' in navigator) {
+// ── نسخه و به‌روزرسانی (الگوی تراز: شبکه‌اول + skipWaiting + reload یک‌بار) ──
+const SEEN_VERSION_KEY = 'koo_seen_version';
+
+function setUpdState(st) {
+  window.__appUpdate = st;
+  const el = $('updStateText');
+  if (el) {
+    el.textContent =
+      st === 'ready' ? '· نسخهٔ جدید آماده است' :
+      st === 'installing' ? '· در حال گرفتن نسخهٔ جدید…' :
+      st === 'latest' ? '· به‌روز است' :
+      st === 'offline' ? '· آفلاین' : '';
+  }
+  if (st === 'ready') showUpdateBar();
+}
+
+function showUpdateBar() {
+  if (document.getElementById('updBar')) return;
+  const d = document.createElement('div');
+  d.id = 'updBar';
+  d.className = 'upd-bar';
+  d.innerHTML =
+    '<span>✨ نسخهٔ جدید آماده است</span>' +
+    '<button class="upd-go" onclick="applyUpdate()">به‌روزرسانی</button>' +
+    '<button class="upd-x" aria-label="بستن" onclick="this.parentElement.remove()">×</button>';
+  document.body.appendChild(d);
+}
+
+window.applyUpdate = () => {
+  const reg = window.__swReg;
+  if (reg && reg.waiting) reg.waiting.postMessage('skipWaiting');
+  else if (window.__applyUpdate) window.__applyUpdate();
+  else location.reload();
+};
+
+window.checkUpdateNow = async () => {
+  const btn = $('btnCheckUpd');
+  if (btn) btn.disabled = true;
+  let st = 'offline';
+  try {
+    if (window.__checkUpdate) st = await window.__checkUpdate();
+  } catch (e) { st = 'offline'; }
+  if (btn) btn.disabled = false;
+  toast(
+    st === 'ready' ? 'نسخهٔ جدید آماده است؛ دکمهٔ به‌روزرسانی را بزن' :
+    st === 'latest' ? 'نسخهٔ نصب‌شده جدیدترین است ✓' :
+    st === 'installing' ? 'در حال گرفتن نسخهٔ جدید…' :
+    'آفلاین هستی؛ بعداً دوباره امتحان کن'
+  );
+};
+
+function setupUpdates() {
+  // بعد از به‌روزرسانی، یک‌بار خبر بده
+  try {
+    const seen = store.get(SEEN_VERSION_KEY);
+    if (seen && seen !== APP_VERSION) toast('به نسخه ' + toFa(APP_VERSION) + ' به‌روزرسانی شد ✓');
+    store.set(SEEN_VERSION_KEY, APP_VERSION);
+  } catch (e) {}
+
+  const host = location.hostname;
+  const allowSW = host === 'localhost' || host === '127.0.0.1' || /\.github\.io$/.test(host) || /\.e2b\.app$/.test(host);
+
+  if (!('serviceWorker' in navigator) || !allowSW) {
+    // بدون سرویس‌ورکر: نسخهٔ روی سرور را با utils.js مقایسه می‌کنیم
+    window.__checkUpdate = () =>
+      fetch('js/utils.js?u=' + Date.now(), { cache: 'no-store' })
+        .then((r) => r.text())
+        .then((txt) => {
+          const m = txt.match(/APP_VERSION\s*=\s*'([^']+)'/);
+          const remote = m && m[1];
+          const st = remote && remote !== APP_VERSION ? 'ready' : 'latest';
+          setUpdState(st);
+          return st;
+        })
+        .catch(() => { setUpdState('offline'); return 'offline'; });
+    window.__applyUpdate = () => {
+      const u = new URL(location.href);
+      u.searchParams.set('r', String(Date.now()));
+      location.replace(u.toString());
+    };
+    return;
+  }
+
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloading) return;
+    reloading = true;
+    location.reload();
+  });
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker
+      .register('sw.js', { updateViaCache: 'none' })
+      .then((reg) => {
+        window.__swReg = reg;
+        const kick = (w) => { if (w) w.postMessage('skipWaiting'); };
+        // نسخهٔ جدید از قبل دانلود شده ولی فعال نشده
+        if (reg.waiting) { setUpdState('ready'); kick(reg.waiting); }
+        reg.addEventListener('updatefound', () => {
+          const nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', () => {
+            if (nw.state === 'installed' && navigator.serviceWorker.controller) setUpdState('ready');
+          });
+        });
+        window.__checkUpdate = () =>
+          reg.update()
+            .then(() => {
+              if (reg.waiting) setUpdState('ready');
+              else if (reg.installing) setUpdState('installing');
+              else setUpdState('latest');
+              return window.__appUpdate || 'latest';
+            })
+            .catch(() => { setUpdState('offline'); return 'offline'; });
+        setTimeout(() => window.__checkUpdate(), 1500);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') window.__checkUpdate();
+        });
+        setInterval(() => {
+          if (document.visibilityState === 'visible') window.__checkUpdate();
+        }, 5 * 60 * 1000);
+      })
+      .catch(() => {});
   });
 }
+
+setupUpdates();

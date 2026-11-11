@@ -1,5 +1,8 @@
 // sw — کش آفلاین کو (الگو از تراز)
-const CACHE = 'koo-v2';
+// ⚠️ با هر انتشار: CACHE را با APP_VERSION در js/utils.js یکی نگه دار
+// (یا از tools/bump-version.mjs استفاده کن)
+const CACHE = 'koo-v0.2.1';
+
 const ASSETS = [
   './',
   './index.html',
@@ -15,29 +18,52 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // cache:'reload' یعنی فایل‌ها از شبکه با نسخهٔ تازه گرفته می‌شوند، نه از کش HTTP
+  e.waitUntil(
+    caches
+      .open(CACHE)
+      .then((c) => c.addAll(ASSETS.map((a) => new Request(a, { cache: 'reload' }))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
+// صفحه می‌تواند صریحاً بگوید «نسخهٔ جدید را فعال کن»
+self.addEventListener('message', (e) => {
+  if (e.data === 'skipWaiting' || (e.data && e.data.type === 'SKIP_WAITING')) self.skipWaiting();
+});
+
+function sameOrigin(url) {
+  try { return new URL(url).origin === self.location.origin; } catch (err) { return false; }
+}
+
 self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return; // گوگل و پل ورسل کش نمی‌شن
   if (e.request.method !== 'GET') return;
+  if (!sameOrigin(e.request.url)) return; // گوگل، درایو و پل ورسل کش نمی‌شن
+
+  // شبکه‌اول: آپدیت‌ها فوراً می‌رسند؛ فقط در حالت آفلاین از کش می‌خوانیم
   e.respondWith(
-    caches.match(e.request).then((hit) => {
-      const net = fetch(e.request).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy));
+    fetch(e.request, { cache: 'no-store' })
+      .then((resp) => {
+        if (resp && resp.ok) {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => {
+            if (e.request.mode === 'navigate') c.put('./index.html', copy);
+            else c.put(e.request, copy);
+          }).catch(() => {});
         }
-        return res;
-      }).catch(() => hit);
-      return hit || net;
-    })
+        return resp;
+      })
+      .catch(() =>
+        e.request.mode === 'navigate' ? caches.match('./index.html') : caches.match(e.request)
+      )
   );
 });

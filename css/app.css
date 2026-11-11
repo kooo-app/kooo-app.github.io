@@ -117,3 +117,10 @@ input,select{font:inherit}
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .seg button.on{color:#fff} }
 .badge.ok{background:color-mix(in srgb, var(--ok) 18%, transparent);color:var(--ok);border-color:color-mix(in srgb, var(--ok) 35%, transparent)}
 .toast{background:color-mix(in srgb, var(--text) 92%, transparent);color:var(--bg)}
+
+/* نوار به‌روزرسانی */
+.upd-bar{position:fixed;top:0;left:0;right:0;z-index:80;display:flex;align-items:center;gap:10px;justify-content:center;
+  padding:10px 12px calc(10px) ;background:var(--primary);color:#fff;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.upd-bar .upd-go{border:0;border-radius:999px;background:#fff;color:var(--primary);font-weight:700;padding:6px 14px}
+.upd-bar .upd-x{background:none;border:0;color:#fff;font-size:20px;line-height:1;opacity:.85;padding:0 4px}
+.upd-bar ~ .hdr{margin-top:0}
