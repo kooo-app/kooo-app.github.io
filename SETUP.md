@@ -10,9 +10,11 @@
 
 ## ۱. انتشار
 
-مخزن در GitHub Pages منتشر می‌شود (Settings → Pages → Deploy from a branch).
+مخزن با GitHub Pages منتشر می‌شود (Settings → Pages → Deploy from a branch) و آدرسش این است:
 
-برای آدرس کوتاه، نام ریپو باید دقیقاً `kooo-app.github.io` باشد (نام سازمان + `.github.io`). در آن حالت آدرس `https://kooo-app.github.io/` می‌شود؛ اگر نام ریپو چیز دیگری باشد، آدرس به شکل `https://kooo-app.github.io/<repo>/` است. تغییر نام فقط از Settings → Repository name انجام می‌شود (توکن برنامهٔ متصل اجازهٔ آن را ندارد).
+`https://kooo-app.github.io/`
+
+نام ریپو عمداً `kooo-app.github.io` است تا Pages آن را به‌عنوان سایت اصلی سازمان سرو کند؛ اگر نام ریپو چیز دیگری باشد، آدرس به شکل `https://kooo-app.github.io/<repo>/` می‌شود.
 
 فایل‌ها استاتیک‌اند؛ هیچ build لازم نیست.
 
