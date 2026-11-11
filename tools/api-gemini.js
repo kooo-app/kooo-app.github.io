@@ -5,7 +5,7 @@
 // ذخیره یا لاگ نمی‌شود. برنامه این‌طوری بدون فیلترشکن به گوگل وصل می‌شود.
 // الگو عیناً از تراز (taraz-app) گرفته شده.
 // ═══════════════════════════════════════════════════════════════════════════
-const ALLOWED_ORIGIN = 'https://koo-app.github.io'; // فقط همین مبدأ
+const ALLOWED_ORIGIN = 'https://kooo-app.github.io'; // فقط همین مبدأ
 const GAPI = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 function sameOrigin(o) {

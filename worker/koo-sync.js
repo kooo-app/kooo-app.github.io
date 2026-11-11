@@ -9,7 +9,7 @@
 //   GOOGLE_CLIENT_SECRET  رمز همان Client
 //   SEAL_KEY              هر رشته ≥۱۶ کاراکتر برای رمزکردن refresh token
 // Var:
-//   ALLOWED_APP           https://koo-app.github.io   (پیش‌فرض همین)
+//   ALLOWED_APP           https://kooo-app.github.io   (پیش‌فرض همین)
 //
 // مسیرها:
 //   GET  /start?app=&n=    شروع ورود گوگل (state رمزشده، ۱۵ دقیقه اعتبار)
@@ -65,7 +65,7 @@ async function unseal(str, env) {
 }
 
 function cors(origin, env) {
-  const allowed = String(env.ALLOWED_APP || 'https://koo-app.github.io');
+  const allowed = String(env.ALLOWED_APP || 'https://kooo-app.github.io');
   const ok = origin && (origin === allowed || origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'));
   const h = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -91,7 +91,7 @@ function html(msg, status) {
   );
 }
 function appOf(env) {
-  return String(env.ALLOWED_APP || 'https://koo-app.github.io');
+  return String(env.ALLOWED_APP || 'https://kooo-app.github.io');
 }
 function redirectUri(req) {
   const u = new URL(req.url);

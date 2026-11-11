@@ -10,8 +10,9 @@
 
 ## ۱. انتشار
 
-مخزن `koo-app.github.io` را در GitHub Pages منتشر کن (Settings → Pages → Deploy from branch: `main` / root).
-آدرس: `https://koo-app.github.io`
+مخزن در GitHub Pages منتشر می‌شود (Settings → Pages → Deploy from a branch).
+
+برای آدرس کوتاه، نام ریپو باید دقیقاً `kooo-app.github.io` باشد (نام سازمان + `.github.io`). در آن حالت آدرس `https://kooo-app.github.io/` می‌شود؛ اگر نام ریپو چیز دیگری باشد، آدرس به شکل `https://kooo-app.github.io/<repo>/` است. تغییر نام فقط از Settings → Repository name انجام می‌شود (توکن برنامهٔ متصل اجازهٔ آن را ندارد).
 
 فایل‌ها استاتیک‌اند؛ هیچ build لازم نیست.
 
@@ -33,7 +34,7 @@
 
 1. یک مخزن جدا بساز، مثلاً `koo-api`.
 2. فایل [`tools/api-gemini.js`](tools/api-gemini.js) را در آن مخزن به مسیر `api/gemini.js` کپی کن.
-3. در بالای فایل، `ALLOWED_ORIGIN` را با دامنهٔ خودت هم‌خوان کن (پیش‌فرض `https://koo-app.github.io`).
+3. در بالای فایل، `ALLOWED_ORIGIN` را با دامنهٔ خودت هم‌خوان کن (پیش‌فرض `https://kooo-app.github.io`).
 4. در Vercel ایمپورت کن و دیپلوی بزن. آدرس نهایی: `https://<project>.vercel.app/api/gemini`.
 5. اگر آدرس فرق داشت، در `js/scan.js` مقدار `GEMINI_PROXY` را عوض کن.
 
@@ -63,7 +64,7 @@
 2. **APIs & Services → Library** → «Google Drive API» را Enable کن.
 3. **OAuth consent screen**: نوع External، نام «کو»، scope `.../auth/drive.file` را اضافه کن. در حالت Testing، ایمیل خودت را Test user بگذار.
 4. **Credentials → Create credentials → OAuth client ID → Web application**:
-   - Authorized JavaScript origins: `https://koo-app.github.io`
+   - Authorized JavaScript origins: `https://kooo-app.github.io`
    - Authorized redirect URIs: `https://<worker>.workers.dev/callback`
 5. `Client ID` و `Client Secret` را کپی کن.
 
@@ -75,7 +76,7 @@
    - Secret `GOOGLE_CLIENT_ID`
    - Secret `GOOGLE_CLIENT_SECRET`
    - Secret `SEAL_KEY` (هر رشتهٔ تصادفی ≥۱۶ کاراکتر؛ این کلید رمزنگاری refresh token است)
-   - Variable `ALLOWED_APP` = `https://koo-app.github.io`
+   - Variable `ALLOWED_APP` = `https://kooo-app.github.io`
 4. آدرس worker را در `js/sync.js` بگذار: `SYNC_WORKER`.
 
 مسیرها: `GET /health`، `GET /start`، `GET /callback`، `POST /refresh`، `POST /revoke`.

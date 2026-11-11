@@ -8,7 +8,7 @@ import { state, persistLocal, replaceState, mergeStates, fingerprint, hasLocalDa
 const render = () => import('./app.js').then((m) => m.render()).catch(() => {});
 
 // ⚠️ برای فعال شدن ورود گوگل: در Google Cloud یک OAuth Client بساز و
-// Origin مجاز را https://koo-app.github.io بگذار، بعد ID را اینجا بگذار.
+// Origin مجاز را https://kooo-app.github.io بگذار، بعد ID را اینجا بگذار.
 export const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILENAME = 'koo-data.json';
